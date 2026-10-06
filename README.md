@@ -49,7 +49,7 @@ Direct weight injection, true rank concatenation, and advanced SVD distillation 
 Full **RU / EN** support with on-the-fly switching—no program restart required; the same build works for both Russian and English-speaking users.
 
 ---
-<iframe width="560" height="315" src="https://www.youtube.com/embed/NOOhGBC6DP0?si=P-M1b2rg4XVusPzf" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+[https://youtu.be/NOOhGBC6DP0?si=P-M1b2rg4XVusPzf](https://youtu.be/NOOhGBC6DP0)
 ---
 
 ## 🚀 Installation
