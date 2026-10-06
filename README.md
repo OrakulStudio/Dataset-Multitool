@@ -51,6 +51,12 @@ Direct weight injection, true rank concatenation, and advanced SVD distillation 
 Full **RU / EN** support with on-the-fly switching no program restart required; the same build works for both Russian and English-speaking users.
 
 ---
+🎬 Video Tutorial & Overview
+Watch a complete walkthrough of Orakul Studio Core v1.0 features, workflow, and Qwen dataset processing:
+
+[Video Tutorial & Overview](https://youtu.be/NOOhGBC6DP0)
+
+*▶️ Click the player above to watch the full walkthrough on YouTube*
 [![Orakul Studio Core Demo](https://markdown-videos-api.jorgenkh.no/youtube/NOOhGBC6DP0)](https://youtu.be/NOOhGBC6DP0)
 ---
 
