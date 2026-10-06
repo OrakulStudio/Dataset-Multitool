@@ -49,7 +49,7 @@ Direct weight injection, true rank concatenation, and advanced SVD distillation 
 Full **RU / EN** support with on-the-fly switching—no program restart required; the same build works for both Russian and English-speaking users.
 
 ---
-[https://youtu.be/NOOhGBC6DP0?si=P-M1b2rg4XVusPzf](https://youtu.be/NOOhGBC6DP0)
+[![Orakul Studio Core Demo](https://markdown-videos-api.jorgenkh.no/youtube/NOOhGBC6DP0)](https://youtu.be/NOOhGBC6DP0)
 ---
 
 ## 🚀 Installation
