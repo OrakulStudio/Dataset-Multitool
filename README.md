@@ -1,7 +1,7 @@
 # 🛠️ Orakul Toolkit: Viking Multi-tool
 
 **A portable multi-tool for preparing datasets and managing diffusion model weights.**
-Built entirely in Python; no installation required—simply unzip and run. The interface switches between **Russian and English on the fly**, right while the program is running.
+Built entirely in Python; no installation required simply unzip and run. The interface switches between **Russian and English on the fly**, right while the program is running.
 
 Developed and maintained by [Orakul Studio](https://github.com/OrakulStudio) (Chernihiv, Ukraine 🇺🇦).
 
@@ -9,7 +9,7 @@ Developed and maintained by [Orakul Studio](https://github.com/OrakulStudio) (Ch
 
 ## About the Project
 
-This is not just a single script, but a comprehensive pipeline of 9 tools covering the entire process—from raw images to fine-tuning and model weight merging. Each module can be used independently or as part of an end-to-end workflow.
+This is not just a single script, but a comprehensive pipeline of 9 tools covering the entire process from raw images to fine-tuning and model weight merging. Each module can be used independently or as part of an end-to-end workflow.
 
 ---
 
@@ -27,7 +27,9 @@ Analyzes your image gallery to create artistic, aesthetic descriptions for relea
 Precise image cropping into perfect squares (ranging from 1024px to 3000px+) with sequential file renaming and no quality loss.
 
 ### 4. Dataset Manager (`Dataset Manager`)
-Augmentation tools: instant image mirroring (left-to-right) with automatic filename recalculation. ### 5. Text Scanner (`QC Scanner`)
+Augmentation tools: instant image mirroring (left-to-right) with automatic filename recalculation. 
+
+### 5. Text Scanner (`QC Scanner`)
 Statistical analysis of thousands of text files: detecting anomalies, text looping, and drastic deviations in description length.
 
 ### 6. Surgical Cleanup (`Auto Clean`)
@@ -93,7 +95,7 @@ Upon the first launch of **Viking Caption** or **Qwen Poem**, the utility will p
 ## 📋 Requirements
 
 - Python 3.10+
-- CUDA-enabled GPU (recommended for Qwen captioning and weight merging)
+- CUDA enabled GPU (recommended for Qwen captioning and weight merging)
 - Sufficient disk space for temporary files when working with safetensors (models ~40 GB+) and for the Qwen cache (~4 GB)
 
 ---
