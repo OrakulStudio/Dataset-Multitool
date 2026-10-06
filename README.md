@@ -18,7 +18,7 @@ This is not just a single script, but a comprehensive pipeline of 9 tools coveri
 The pipeline is divided into logical stages, ranging from raw images to weight fine-tuning:
 
 ### 1. Viking Caption
-Multimodal auto-captioning powered by state-of-the-art models (e.g., `Qwen`), featuring system prompt support via a built-in editor. Supports convenient drag-and-drop of folders directly into the terminal.
+Multimodal auto captioning powered by state-of-the-art models (e.g., `Qwen`), featuring system prompt support via a built-in editor. Supports convenient drag-and-drop of folders directly into the terminal.
 
 ### 2. Lore Description Generator (`Qwen Poem`)
 Analyzes your image gallery to create artistic, aesthetic descriptions for releases on platforms like Civitai or Hugging Face.
@@ -48,7 +48,7 @@ Direct weight injection, true rank concatenation, and advanced SVD distillation 
 
 ## 🌍 Bilingual Interface
 
-Full **RU / EN** support with on-the-fly switching—no program restart required; the same build works for both Russian and English-speaking users.
+Full **RU / EN** support with on-the-fly switching no program restart required; the same build works for both Russian and English-speaking users.
 
 ---
 [![Orakul Studio Core Demo](https://markdown-videos-api.jorgenkh.no/youtube/NOOhGBC6DP0)](https://youtu.be/NOOhGBC6DP0)
@@ -56,9 +56,9 @@ Full **RU / EN** support with on-the-fly switching—no program restart required
 
 ## 🚀 Installation
 
-The virtual environment is **not included** in the distribution—neither on GitHub nor on Hugging Face. The reason is simple: a `venv` stores a hard link to the Python interpreter of the machine where it was created; consequently, it fails to work when transferred to another PC (this is a characteristic of Python itself, not a limitation of the toolkit). However, this gives you complete freedom: you can place `orakul_env` and the Qwen model cache (~4 GB) on any drive you choose.
+The virtual environment is **not included** in the distribution neither on GitHub nor on Hugging Face. The reason is simple: a `venv` stores a hard link to the Python interpreter of the machine where it was created; consequently, it fails to work when transferred to another PC (this is a characteristic of Python itself, not a limitation of the toolkit). However, this gives you complete freedom: you can place `orakul_env` and the Qwen model cache (~4 GB) on any drive you choose.
 
-### Option A: Single-command setup (Windows, recommended)
+### Option A: Single command setup (Windows, recommended)
 
 ```bash
 setup.bat
