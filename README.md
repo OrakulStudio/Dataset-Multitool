@@ -108,10 +108,11 @@ Upon the first launch of **Viking Caption** or **Qwen Poem**, the utility will p
 
 ## 📜 License
 
-This project is licensed under the **MIT License** — free for personal and commercial use. See the [`LICENSE`](LICENSE) file for details.
+This project is licensed under the **MIT License**  free for personal and commercial use. See the [`LICENSE`](LICENSE) file for details.
 
 ## 🔗 Links
 
 - [Hugging Face](https://huggingface.co/OrakulStorm)
 - [CivitAI](https://civitai.com/user/ORAKUL_STUDIO)
+- 
 Developed and maintained by Orakul Studio. If you find this tool useful, give it a ⭐!
