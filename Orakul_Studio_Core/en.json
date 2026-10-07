@@ -294,6 +294,31 @@
   "[bold yellow]Размер квадрата в пикселях [Enter = 1024]: [/bold yellow]": "[bold yellow]Square size in pixels [Enter = 1024]: [/bold yellow]",
   "[bold yellow]Префикс для файлов [Enter = rt]: [/bold yellow]": "[bold yellow]Prefix for files [Enter = rt]: [/bold yellow]",
   
+  "ЧТО НОВОГО В ВЕРСИИ:": "WHAT'S NEW IN THIS VERSION:",
+  "Опциональный префикс (сохранение родных имён).": "Optional prefix (keep original names).",
+  "Умная синхронизация парных .txt файлов (игнор кэша).": "Smart sync for paired .txt files (ignores cache).",
+  "Обновлено меню: [L] вместо [LANG] для удобства ввода.": "Menu updated: [L] instead of [LANG] for faster input.",
+  "ORAKUL DATASET MULTITOOL": "ORAKUL DATASET MULTITOOL",
+  
+  
+  "В папке": "In the folder",
+  "не найдено подходящих изображений.": "no suitable images found.",
+  "Обнаружено": "Found",
+  "парных текстовых файлов (.txt)!": "paired text files (.txt)!",
+  "Перенести и переименовать их вместе с картинками? [Y/n]:": "Move and rename them together with images? [Y/n]:",
+  "Найдено файлов для обработки:": "Files found for processing:",
+  "Оригинальные имена": "Original names",
+  "Целевой размер:": "Target size:",
+  "Префикс:": "Prefix:",
+  "Обработка и ресайз кадров...": "Processing and resizing frames...",
+  "Ошибка:": "Error:",
+  "ОБРАБОТКА ЗАВЕРШЕНА (Успешно:": "PROCESSING COMPLETE (Successful:",
+  "Готовый датасет сохранён в:": "Finished dataset saved to:",
+  "Перетащи папку проекта датасета сюда:": "Drag and drop the dataset project folder here:",
+  "УПС! путь не обнаружен!": "The specified path does not exist!",
+  "Размер квадрата в пикселях [Enter = 1024]:": "Square size in pixels [Enter = 1024]:",
+  "Префикс для файлов [Enter = оставить родные имена]:": "Prefix for files [Enter = keep original names]:",
+  
   
   
   

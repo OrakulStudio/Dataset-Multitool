@@ -19,7 +19,6 @@ from rich.console import Console
 from rich.panel import Panel
 
 def t(text: str) -> str:
-    """Чистый переводчик: читает config.json, открывает {lang}.json и возвращает текст"""
     config_file = Path("config.json")
     lang = "ru"
     
@@ -40,17 +39,13 @@ def t(text: str) -> str:
     try:
         with open(lang_file, "r", encoding="utf-8") as f:
             raw_data = json.load(f)
-            # 1. Зачищаем невидимый символ во всех ключах словаря
             data = {k.replace('\ufe0f', ''): v for k, v in raw_data.items()}
             
-        # 2. Зачищаем невидимый символ во входящем тексте
         clean_text = text.replace('\ufe0f', '')
             
-        # Прямое точное совпадение
         if clean_text in data:
             return data[clean_text]
             
-        # Если это многострочный текст (меню), переводим каждую строку отдельно
         if "\n" in clean_text:
             lines = clean_text.split("\n")
             translated_lines = [data.get(line.replace('\ufe0f', ''), line) for line in lines]
@@ -63,7 +58,7 @@ def t(text: str) -> str:
 # Инициализация красивой консоли
 console = Console()
 
-# --- АБСОЛЮТНО ПОРТАТИВНЫЕ ПУТИ (Относительно папки Orakul_Studio_Core) ---
+# --- АБСОЛЮТНО ПОРТАТИВНЫЕ ПУТИ ---
 BASE_DIR = Path(__file__).resolve().parent
 
 NPP_PATH = BASE_DIR / "Notepad" / "notepad++.exe"
@@ -79,29 +74,44 @@ MERGE_SCRIPT = BASE_DIR / "merge_manager.py"
 DATASET_SCRIPT = BASE_DIR / "dataset_manager.py"
 CHECK_SCRIPT = BASE_DIR / "check_params.py"
 
-# --- ПРОВЕРКА ВИРТУАЛЬНОГО ОКРУЖЕНИЯ  ---
+# --- ПРОВЕРКА ВИРТУАЛЬНОГО ОКРУЖЕНИЯ ---
 def check_venv():
     if not VENV_PYTHON.exists():
         console.print(t("\n[bold red][ERROR] Виртуальное окружение 'orakul_env' не найдено | Virtual environment not found![/bold red]"))
         console.print(t("\n[yellow]Выполни по порядку в этой же папке | Perform the steps in order within the same folder. :[/yellow]\n"))
         console.print("  pip install -r requirements.txt")
         console.print("  python -m venv orakul_env")
-        console.print("  orakul_env\\Scripts\\activate  (в Git Bash / Linux: source orakul_env/Scripts/activate)")
+        console.print("  orakul_env\\Scripts\\activate")
         console.print("  pip install -r requirements_caption_env.txt")
         console.print("  deactivate")
         console.print("  python run.py")
         console.print(t("\n[dim]Нажми Enter для выхода(Press Enter to exit)...[/dim]"))
         input()
         sys.exit(1)
-# ---------------------------------------------------------
-
 
 def clear_screen():
     os.system('cls' if os.name == 'nt' else 'clear')
 
+# --- БЛОК ИНФОРМАЦИИ ОБ ОБНОВЛЕНИЯХ ---
+def draw_whats_new():
+    changelog = (
+        f"[bold cyan]ℹ️ {t('ЧТО НОВОГО В ВЕРСИИ:')}[/bold cyan]\n"
+        f"  • [green][NEW][/green] Crop & Rename: {t('Опциональный префикс (сохранение родных имён).')}\n"
+        f"  • [green][NEW][/green] Crop & Rename: {t('Умная синхронизация парных .txt файлов (игнор кэша).')}\n"
+        f"  • [yellow][UI][/yellow] {t('Обновлено меню: [L] вместо [LANG] для удобства ввода.')}"
+    )
+    console.print(Panel(
+        changelog,
+        title=f"[bold yellow]🛠️ {t('ORAKUL DATASET MULTITOOL')}[/bold yellow]",
+        title_align="left",
+        subtitle="[bold cyan]v2.0.1[/bold cyan]",
+        subtitle_align="right",
+        border_style="cyan",
+        expand=False
+    ))
+
 def run_qwen_task(script_path, task_name):
     console.print(f"\n[bold yellow]--- {task_name.upper()} ---[/bold yellow]")
-    
     target_folder = console.input(t("[bold cyan]Перетащи папку с картинками сюда:[/bold cyan] ")).strip(' "\'')
     
     if not os.path.exists(target_folder):
@@ -109,7 +119,6 @@ def run_qwen_task(script_path, task_name):
         return
 
     temp_prompt_file = BASE_DIR / "CURRENT_ACTIVE_PROMPT.txt"
-    
     console.print("\n" + t("[bold magenta][!][/bold magenta] [white]Открываю Notepad++. Вставь промпт,[/white] [bold green]СОХРАНИ (Ctrl+S)[/bold green] [white]и[/white] [bold red]ЗАКРОЙ окно![/bold red]"))
     
     subprocess.run([str(NPP_PATH), "-multiInst", "-nosession", str(temp_prompt_file)])
@@ -125,11 +134,9 @@ def run_qwen_task(script_path, task_name):
 def run_simple_task(script_path, task_name):
     console.print(f"\n[bold yellow]--- {task_name.upper()} ---[/bold yellow]")
     target_folder = console.input(t("[bold cyan]Перетащи папку с датасетом сюда:[/bold cyan] ")).strip(' "\'')
-    
     if not os.path.exists(target_folder):
         console.print(t("[bold red][-] Ошибка: Папка не найдена![/bold red]"))
         return
-
     console.print(f"\n[bold green][+][/bold green] [bold white]{t('Запуск утилиты')} {task_name}...[/bold white]")
     subprocess.run([str(VENV_PYTHON), str(script_path), target_folder])
     console.print(f"\n[bold green][+][/bold green] [bold cyan]{t('Задача')} '{task_name}' {t('успешно выполнена!')}[/bold cyan]")
@@ -154,9 +161,12 @@ def set_current_lang(lang_code):
         json.dump(config_data, f, indent=4)
 
 def main():
-    check_venv()  # <-- один раз при запуске
+    check_venv()
     while True:
         clear_screen()
+        
+        # Отрисовка шапки с версией
+        draw_whats_new()
         
         menu_text = (
             "[bold cyan][1][/bold cyan] Viking Caption (Техническая разметка датасета)\n"
@@ -169,7 +179,7 @@ def main():
             "[bold cyan][8][/bold cyan] Dataset Manager (Аугментация датасета & Нумерация)\n"
             "[bold cyan][9][/bold cyan] Model Inspector (Параметры & Триггерные слова)\n"
             "[bold red][0][/bold red] Выход\n\n"
-            "[bold magenta][LANG][/bold magenta] Смена языка (Language)"
+            "[bold magenta][L][/bold magenta] Смена языка (Language)"
         )
         
         console.print(Panel(
@@ -179,7 +189,7 @@ def main():
             expand=False
         ))
 
-        choice = console.input("\n" + t("[bold white]Выбери действие (0-9, lang): [/bold white]")).strip().lower()
+        choice = console.input("\n" + t("[bold white]Выбери действие (0-9, l): [/bold white]")).strip().lower()
 
         if choice == '1':
             run_qwen_task(VIKING_SCRIPT, "Viking Caption")
@@ -215,7 +225,7 @@ def main():
                 console.print(t("[bold green][+] Язык изменен на:[/bold green]") + f" [bold green]{new_lang.upper()}[/bold green]")
             else:
                 console.print(t("[bold red][-] Неверный язык![/bold red]"))
-                console.input("\n" + t("[dim]Нажми Enter для возврата...[/dim]"))
+            console.input("\n" + t("[dim]Нажми Enter для возврата...[/dim]"))
         elif choice == '0':
             console.print(t("Выход из системы. Удачного обучения!"))
             break
