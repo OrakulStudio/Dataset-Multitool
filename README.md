@@ -1,5 +1,9 @@
 # 🛠️ Orakul Toolkit: Viking Multi-tool
 
+⏳ TONIGHT'S DROP: We’re prepping the integration of the heavyweight Qwen 3.5 Base (19.3 GB) in pure bf16. Tests are complete the v2.1.0 release is coming right after the evening power-up!
+
+⏳ TONIGHT DROP: Готовится интеграция тяжеловеса Qwen 3.5 Base (19.3 GB) в чистом bf16. Тесты пройдены, релиз v2.1.0 сразу после вечернего включения света!
+
 **A portable multi-tool for preparing datasets and managing diffusion model weights.**
 Built entirely in Python; no installation required simply unzip and run. The interface switches between **Russian and English on the fly**, right while the program is running.
 
