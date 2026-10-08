@@ -35,17 +35,13 @@ def t(text: str) -> str:
     try:
         with open(lang_file, "r", encoding="utf-8") as f:
             raw_data = json.load(f)
-            # 1. Зачищаем невидимый символ во всех ключах словаря
             data = {k.replace('\ufe0f', ''): v for k, v in raw_data.items()}
             
-        # 2. Зачищаем невидимый символ во входящем тексте
         clean_text = text.replace('\ufe0f', '')
             
-        # Прямое точное совпадение
         if clean_text in data:
             return data[clean_text]
             
-        # Если это многострочный текст (меню), переводим каждую строку отдельно
         if "\n" in clean_text:
             lines = clean_text.split("\n")
             translated_lines = [data.get(line.replace('\ufe0f', ''), line) for line in lines]
@@ -129,7 +125,7 @@ def inspect_png_metadata(png_path: Path):
         )
     )
 
-    # Предлагаем экспортировать в файлы
+    # Предлагаем экспортировать в файлы (активно только во 2-м пункте инспекции)
     export_choice = (
         console.input(
             '\n' + t("[bold yellow]Хочешь выгрузить Prompt (.txt) или Workflow (.json) из этого файла? (y/n) [Enter = n]: [/bold yellow]")
@@ -261,7 +257,7 @@ def main():
   while True:
     console.print('\n' + t("[bold white]────────── МЕНЮ МОДУЛЯ ──────────[/bold white]"))
     console.print(
-        t("[bold green][1][/bold green] Перенести метаданные (Оригинал ➔ Ретушь)")
+        t("[bold green][1][/bold green] Перенести метаданные (Конвейер Оригинал ➔ Ретушь)")
     )
     console.print(
         t("[bold green][2][/bold green] Проверить / экспортировать метаданные PNG")
@@ -274,34 +270,15 @@ def main():
       console.print(t("[dim]Возврат в главное меню...[/dim]"))
       break
 
-    # === РЕЖИМ 1: ПЕРЕНОС МЕТАДАННЫХ ===
+    # === РЕЖИМ 1: ПЕРЕНОС МЕТАДАННЫХ (БЕСПРЕРЫВНЫЙ КОНВЕЙЕР БЕЗ ЛИШНИХ ВОПРОСОВ) ===
     if mode == '1':
       print('\n' + '=' * 50)
-      orig_input = (
-          console.input(
-              t("[bold cyan]1. Перетащи оригинальный PNG из ComfyUI (или \"0\" для отмены):[/bold cyan] ")
-          )
-          .strip(' "\'')
-      )
-      if orig_input == '0' or not orig_input:
-        continue
-      orig_path = Path(orig_input).resolve()
-
-      proc_input = (
-          console.input(
-              t("[bold cyan]2. Перетащи обработанный PNG после ретуши (или \"0\" для отмены):[/bold cyan] ")
-          )
-          .strip(' "\'')
-      )
-      if proc_input == '0' or not proc_input:
-        continue
-      proc_path = Path(proc_input).resolve()
-
-      default_folder = proc_path.parent / 'published'
+      console.print(t("[bold yellow]⚡ НЕПРЕРЫВНЫЙ КОНВЕЙЕР (Оригинал ➔ Ретушь) ⚡[/bold yellow]"))
+      
+      # Спрашиваем папку один раз перед циклом
       folder_input = (
           console.input(
-              t("[bold yellow]3. Папка для сохранения [Enter = [/bold yellow]") +
-              f"[bold yellow]'{default_folder.name}']: [/bold yellow]"
+              t("[bold yellow]Укажи папку для сохранения [Enter = авто 'published']: [/bold yellow]")
           )
           .strip(' "\'')
       )
@@ -309,28 +286,46 @@ def main():
       if folder_input:
         dest_folder = Path(folder_input).resolve()
       else:
-        dest_folder = default_folder
+        dest_folder = Path.cwd() / 'published'
+        
+      dest_folder.mkdir(parents=True, exist_ok=True)
+      console.print(t("[bold green][+] Рабочая папка:[/bold green]") + f" [cyan]{dest_folder}[/cyan]")
+      console.print(t("[dim]Для выхода в меню введи '0' вместо пути.[/dim]\n"))
 
-      out_path = dest_folder / f'{proc_path.stem}_meta.png'
+      # Бесконечный цикл заброса файлов
+      pair_counter = 1
+      while True:
+          console.print(f"[bold white]─── Пара #{pair_counter} ───[/bold white]")
+          orig_input = (
+              console.input(
+                  t("[bold cyan]1. Перетащи оригинальный PNG из ComfyUI (или \"0\" для отмены):[/bold cyan] ")
+              )
+              .strip(' "\'')
+          )
+          if orig_input == '0' or not orig_input:
+            console.print(t("[dim]Выход в главное меню...[/dim]"))
+            break
+          orig_path = Path(orig_input).resolve()
 
-      success = transfer_png_metadata(orig_path, proc_path, out_path)
+          proc_input = (
+              console.input(
+                  t("[bold cyan]2. Перетащи обработанный PNG после ретуши (или \"0\" для отмены):[/bold cyan] ")
+              )
+              .strip(' "\'')
+          )
+          if proc_input == '0' or not proc_input:
+            console.print(t("[dim]Выход в главное меню...[/dim]"))
+            break
+          proc_path = Path(proc_input).resolve()
 
-      if success:
-        check_choice = (
-            console.input(
-                '\n' + t("[bold yellow]Хочешь проверить метаданные готового файла? (y/n) [Enter = n]: [/bold yellow]")
-            )
-            .strip()
-            .lower()
-        )
-        if check_choice in ('y', 'yes', 'д', 'да'):
-          inspect_png_metadata(out_path)
+          out_path = dest_folder / f'{proc_path.stem}_meta.png'
 
-      # Полный сброс переменных перед новым кругом
-      orig_path = None
-      proc_path = None
-      out_path = None
-      print('=' * 50)
+          # Просто вшиваем и сохраняем, без всяких дополнительных вопросов
+          success = transfer_png_metadata(orig_path, proc_path, out_path)
+          
+          if success:
+              pair_counter += 1
+          print('-' * 50)
 
     # === РЕЖИМ 2: ПРОВЕРКА / ЭКСПОРТ ===
     elif mode == '2':

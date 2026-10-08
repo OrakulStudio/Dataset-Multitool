@@ -320,12 +320,23 @@
   "Префикс для файлов [Enter = оставить родные имена]:": "Prefix for files [Enter = keep original names]:",
   
   
+  "[bold yellow]⚡ БЕСКЛИКОВЫЙ КОНВЕЙЕР (ДОНОР ➔ ЦЕЛЬ) ⚡[/bold yellow]": "[bold yellow]⚡ CLICKLESS PIPELINE (DONOR ➔ TARGET) ⚡[/bold yellow]",
+  "[bold green][+] Рабочая папка создана:[/bold green]": "[bold green][+] Workspace created:[/bold green]",
+  "[dim]Для выхода в меню нажми Esc или введи '0'.[/dim]": "[dim]To exit to the menu, press Esc or type '0'.[/dim]",
+  "[bold cyan]1. ЗАКИНЬ ПЕРВЫМ ОРИГИНАЛ (ДОНОР): [/bold cyan]": "[bold cyan]1. DROP THE ORIGINAL FIRST (DONOR): [/bold cyan]",
+  "[bold magenta]2. ТЕПЕРЬ ЗАКИНЬ ВТОРОЙ (ОБРАБОТАННЫЙ): [/bold magenta]": "[bold magenta]2. NOW DROP THE SECOND (PROCESSED): [/bold magenta]",
+  "[bold red][-] Ошибка: В первом файле (доноре) НЕТ метаданных![/bold red]": "[bold red][-] Error: The first file (donor) has NO metadata![/bold red]",
+  "[bold green][+] УСПЕШНО! Вшито и сохранено:[/bold green]": "[bold green][+] INJECTED SUCCESSFULLY! Saved:[/bold green]",
+  "\n[bold red][!] Файл не найден. Попробуй еще раз:[/bold red] ": "\n[bold red][!] File not found. Try again:[/bold red] ",
+  "[bold green][1][/bold green] Перенести метаданные (Конвейер Оригинал ➔ Ретушь)": "[bold green][1][/bold green] Transfer metadata (Original ➔ Retouch Pipeline)",
   
   
-  
-  
-  
-  
+  "[bold yellow]⚡ НЕПРЕРЫВНЫЙ КОНВЕЙЕР (Оригинал ➔ Ретушь) ⚡[/bold yellow]": "[bold yellow]⚡ CONTINUOUS PIPELINE (Original ➔ Retouch) ⚡[/bold yellow]",
+  "[bold yellow]Укажи папку для сохранения [Enter = авто 'published']: [/bold yellow]": "Specify output folder [Enter = auto 'published']: ",
+  "[bold green][+] Рабочая папка:[/bold green]": "[bold green][+] Workspace:[/bold green]",
+  "[dim]Для выхода в меню введи '0' вместо пути.[/dim]": "[dim]Type '0' instead of a path to exit to the menu.[/dim]",
+  "[bold cyan]1. Перетащи оригинальный PNG из ComfyUI (или \"0\" для отмены):[/bold cyan] ": "[bold cyan]1. Drop original PNG from ComfyUI (or \"0\" to cancel):[/bold cyan] ",
+  "[bold cyan]2. Перетащи обработанный PNG после ретуши (или \"0\" для отмены):[/bold cyan] ": "[bold cyan]2. Drop processed PNG after retouching (or \"0\" to cancel):[/bold cyan] ",
   
   
   
