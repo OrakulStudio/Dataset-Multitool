@@ -1,7 +1,42 @@
 # 🛠️ Orakul Toolkit: Viking Multi-tool
 
-**A portable multi-tool for preparing datasets and managing diffusion model weights.**
-Built entirely in Python; no installation required simply unzip and run. The interface switches between **Russian and English on the fly**, right while the program is running.
+🚀 Orakul Dataset Multitool  Release v2.1.0
+⏳ TONIGHT'S DROP: Integration of the heavyweight Qwen 3.5 Base / Qwen-VL family in pure bf16 is complete! Tests are passed, and the v2.1.0 release is live right after the evening power-up.
+
+⏳ ВЕЧЕРНИЙ ДРОП: Интеграция тяжеловесной линейки Qwen 3.5 Base / Qwen-VL в чистом bf16 завершена. Все тесты пройдены, релиз v2.1.0 выкатывается сразу после включения света!
+
+⚡ What’s New in v2.1.0 / Что нового в версии 2.1.0
+🧠 Qwen-VL Engine & Model Support
+Full Support for 3 Qwen Models: Added full pipeline support for Qwen 2.5-VL-7B, Qwen3-VL-8B, and Qwen3-VL-30B-FP8.
+
+💡 RECOMMENDED MODEL:
+Qwen 2.5-VL-7B is the recommended primary workhorse for dataset capping and lore generation. Extremely high inference speed, crisp detail recognition, and lightweight storytelling syntax.
+
+Tip: Use English system prompts with / Русский response instructions for the best literary quality without language drift.
+
+✂️ Crop & Rename Toolkit
+Optional Prefix (Keep Original Names): You can now leave the prefix field blank to preserve original image filenames during cropping and resizing.
+
+Smart Paired .txt Sync: Automatic sync for paired text files. Bypasses cache conflicts and syncs descriptions seamlessly with updated image names.
+
+🌐 UI & i18n (Multilingual Engine)
+Instant Language Switch: Updated menu shortcuts — use [L] for lightning-fast runtime switching between English, Russian, and Chinese.
+
+Full Dictionary Coverage: Added missing translation keys and color-tag formatting across all workflow screens.
+
+📦 About Orakul Dataset Multitool
+A portable, zero-install multi-tool for preparing image datasets, captioning, and managing diffusion model weights (SDXL, Flux.2, Z-Image).
+
+Zero Installation: Built entirely in Python. Just extract the .zip archive and run run.bat.
+
+No Dependencies Conflict: Ships with an isolated environment and automatic CUDA memory management.
+
+On-the-Fly Localization: Switch UI languages instantly while the program is running.
+
+📥 Download & Quick Start / Скачать и запустить
+Download v2.1.0-Orakul-Multitool.zip from the Releases section.
+
+Launch via run.bat.
 
 Developed and maintained by [Orakul Studio](https://github.com/OrakulStudio) (Chernihiv, Ukraine 🇺🇦).
 
