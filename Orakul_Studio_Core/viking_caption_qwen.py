@@ -1,6 +1,6 @@
 # ==============================================================================
 #  ORAKUL CORE — AI Dataset & Model MultiTool
-#  Module: Viking Caption (Qwen2.5-VL Auto-Captioner)
+#  Module: Viking Caption (Qwen-VL Auto-Captioner)
 # ------------------------------------------------------------------------------
 #  Author:      Orakul (Orakul Studio)
 #  GitHub:      https://github.com/OrakulStudio
@@ -18,7 +18,6 @@ from pathlib import Path
 
 # --- ФУНКЦИЯ ПЕРЕВОДА ИЗ ГЛАВНОГО ФАЙЛА ---
 def t(text: str) -> str:
-    """Чистый переводчик: читает config.json, открывает {lang}.json и возвращает текст"""
     config_file = Path("config.json")
     lang = "ru"
     
@@ -54,47 +53,30 @@ def t(text: str) -> str:
         pass
         
     return text
-# -----------------------------------------
 
 # === ДИНАМИЧЕСКОЕ ПЕРЕНАПРАВЛЕНИЕ КЭША (PORTABLE-READY) ===
 config_file_cache = Path(__file__).parent / "paths.json"
 cache_path = None
 
-# 1. Если config.json есть, читаем и ПРОВЕРЯЕМ, существует ли этот диск на текущем ПК
 if config_file_cache.exists():
     try:
         with open(config_file_cache, "r", encoding="utf-8") as f:
             saved_path = json.load(f).get("hf_cache_dir", r"xxx:\AI_Models\Cache")
-            drive = Path(saved_path).drive  # Достаёт букву диска, например "E:"
+            drive = Path(saved_path).drive
 
-            # Если диск из сохранённого конфига есть в системе — берем его
             if drive and Path(f"{drive}/").exists():
                 cache_path = saved_path
-            else:
-                print(
-                    t("\n[!] Диск ") + drive + t(" из paths.json не найден на этой машине.")
-                )
     except Exception:
         pass
 
-# 2. Если конфига не было ИЛИ сохранённого диска нет на этом ПК
 if not cache_path:
     cache_path = r"xxx:\AI_Models\Cache"
     if not Path("xxx:/").exists():
-        print(t("\n[!] Указанный путь не обнаружен (Диск  отсутствует)."))
-        user_drive = (
-            input(
-                t("Укажите свою букву диска для скачивания Qwen (например, C, E, G): ")
-            )
-            .strip()
-            .upper()
-        )
+        user_drive = input(t("Укажите свою букву диска для скачивания Qwen (например, C, E, G): ")).strip().upper()
         if user_drive:
             cache_path = rf"{user_drive}:\AI_Models\Cache"
 
-    # Перезаписываем ("w") config.json актуальным диском текущего ПК
     with open(config_file_cache, "w", encoding="utf-8") as f:
-        # Сначала читаем существующий конфиг, чтобы не затереть язык
         current_config = {}
         if config_file_cache.exists():
             try:
@@ -109,14 +91,51 @@ os.environ["HF_HUB_ENABLE_HF_TRANSFER"] = "1"
 os.environ["HF_HOME"] = cache_path
 # =========================================================
 
+
+# --- АВТОМАТИЧЕСКИЙ ПАТЧ ВСЕХ ФАЙЛОВ KERNELS ДЛЯ СТАБИЛЬНОГО PYTORCH ---
+import glob
+import shutil
+
+kernels_dir = os.path.join(cache_path, "hub", "kernels--kernels-community--finegrained-fp8")
+if os.path.exists(kernels_dir):
+    for file_path in glob.glob(os.path.join(kernels_dir, "**", "*.py"), recursive=True):
+        try:
+            with open(file_path, "r", encoding="utf-8") as f:
+                content = f.read()
+            
+            modified = False
+            if "block_size: list[int]" in content:
+                content = content.replace("block_size: list[int]", "block_size: List[int]")
+                modified = True
+            if "block_size: list[int] | None" in content:
+                content = content.replace("block_size: list[int] | None", "block_size: List[int] | None")
+                modified = True
+                
+            if modified:
+                if "from typing import List" not in content:
+                    content = "from typing import List\n" + content
+                    
+                with open(file_path, "w", encoding="utf-8") as f:
+                    f.write(content)
+                    
+                pycache_dir = os.path.join(os.path.dirname(file_path), "__pycache__")
+                if os.path.exists(pycache_dir):
+                    shutil.rmtree(pycache_dir, ignore_errors=True)
+        except Exception:
+            pass
+# ----------------------------------------------------------------------
+
+
 import torch
+
+# --- ПАТЧ ДЛЯ QWEN 30B FP8 НА СТАБИЛЬНОМ PYTORCH ---
+if not hasattr(torch, "float8_e8m0fnu"):
+    setattr(torch, "float8_e8m0fnu", getattr(torch, "float8_e4m3fn", torch.uint8))
+# ---------------------------------------------------
+
 from PIL import Image
-# =====================================================================
-# ЖЕСТКИЙ ИМПОРТ: Вызываем архитектуру Qwen напрямую, без Auto-рулетки
-from transformers import AutoProcessor, Qwen2_5_VLForConditionalGeneration
-# =====================================================================
+from transformers import AutoProcessor, AutoModelForImageTextToText
 from qwen_vl_utils import process_vision_info
-from pathlib import Path
 from rich.console import Console
 from rich.progress import (
     Progress, 
@@ -130,38 +149,35 @@ from rich.progress import (
 # Инициализация красивой консоли
 console = Console()
 
-# =====================================================================
-# НАСТРОЙКА МОДЕЛИ И ПРИЁМ ДАННЫХ ОТ ПУЛЬТА
-# =====================================================================
-MODEL_NAME = "Qwen/Qwen2.5-VL-7B-Instruct"
-
-# Проверяем, что скрипт запущен через наш пульт
-if len(sys.argv) < 3:
-    console.print(t("[bold red][ERROR] Скрипт нужно запускать через пульт run.py![/bold red]"))
-    sys.exit(1)
-
-TARGET_FOLDER = sys.argv[1] 
-PROMPT_FILE = sys.argv[2]
-
-try:
-    with open(PROMPT_FILE, "r", encoding="utf-8") as f:
-        SYSTEM_PROMPT = f.read().strip()
-except Exception as e:
-    console.print(t("[bold red][ERROR] Ошибка чтения промпта: ") + f"{e}[/bold red]")
-    sys.exit(1)
-# =====================================================================
-
 def main():
+    # 1. Проверяем и забираем аргументы из пульта (включая модель из sys.argv[3])
+    if len(sys.argv) < 4:
+        console.print(t("[bold red][ERROR] Скрипт нужно запускать через пульт run.py (не передан ID модели)![/bold red]"))
+        sys.exit(1)
+
+    TARGET_FOLDER = sys.argv[1] 
+    PROMPT_FILE = sys.argv[2]
+    MODEL_NAME = sys.argv[3]
+
+    try:
+        with open(PROMPT_FILE, "r", encoding="utf-8") as f:
+            SYSTEM_PROMPT = f.read().strip()
+    except Exception as e:
+        console.print(t("[bold red][ERROR] Ошибка чтения промпта: ") + f"{e}[/bold red]")
+        sys.exit(1)
+
     console.print(t("[bold cyan][ORAKUL SYSTEM][/bold cyan] [bold yellow]Инициализация интеллектуального монстра: ") + MODEL_NAME + t("...[/bold yellow]"))
     
-    processor = AutoProcessor.from_pretrained(MODEL_NAME)
+    # 2. Загружаем процессор
+    processor = AutoProcessor.from_pretrained(MODEL_NAME, trust_remote_code=True)
     
-    # Загрузка модели напрямую через её родной класс + обход flash_attn
-    model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
+    # 3. Инициализируем модель (чего и не хватало!)
+    model = AutoModelForImageTextToText.from_pretrained(
         MODEL_NAME,
         torch_dtype=torch.bfloat16,
         attn_implementation="sdpa",
-        device_map="cuda"
+        device_map="cuda",
+        trust_remote_code=True
     )
     
     valid_exts = ('.png', '.jpg', '.jpeg', '.webp', '.bmp', '.PNG', '.JPG', '.JPEG')
@@ -173,11 +189,10 @@ def main():
         
     console.print(t("[bold cyan][ORAKUL SYSTEM][/bold cyan] [bold green]Найдено ") + str(len(image_paths)) + t(" холстов. Запуск глубокого анализа...[/bold green]"))
     
-    # === НАСТРОЙКА КРАСИВОГО ПРОГРЕСС-БАРА ===
     with Progress(
-        SpinnerColumn("dots", style="bold yellow"),  # Те самые крутящиеся песчинки
+        SpinnerColumn("dots", style="bold yellow"),
         TextColumn("[bold cyan]{task.description}"),
-        BarColumn(complete_style="green", finished_style="bold green", pulse_style="yellow"), # Тонкая полоса
+        BarColumn(complete_style="green", finished_style="bold green", pulse_style="yellow"),
         TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
         TextColumn("[bold white]{task.completed}/{task.total}"),
         TextColumn(t("[dim]Время:[/dim]")),
@@ -226,7 +241,6 @@ def main():
                 with open(output_file, "w", encoding="utf-8") as f:
                     f.write(caption.strip())
                     
-                # Двигаем наш новый прогресс-бар на 1 шаг вперед
                 progress.advance(task)
                     
             except Exception as e:
