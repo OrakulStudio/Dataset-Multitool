@@ -1,43 +1,6 @@
-# 📄 РАХУНОК-ФАКТУРА № 104 від 9 жовтня 2026 р.
-
----
-
-### 🏦 Банківські реквізити для сплати
-
-| Отримувач | ТОВ "Оракул Студіо" |
-| :--- | :--- |
-| **Код ЄДРПОУ** | 43981234 |
-| **Банк отримувача** | АТ КБ "ПриватБанк" |
-| **МФО** | 300711 |
-| **Рахунок (IBAN)** | UA82300711000002600123456789 |
-
----
-
-### 👤 Учасники угоди
-
-* **Постачальник:** ТОВ "Оракул Студіо", ЄДРПОУ 43981234, м. Чернігів
-* **Покупець:** ФОП Коваленко О.В., ІПН 3120987654, м. Київ
-
----
-
-### 🛒 Перелік наданих послуг / товарів
-
-| № | Найменування товару / послуги | К-сть | Од. | Ціна (грн) | Сума (грн) |
-| :-: | :--- | :-: | :-: | :-: | :-: |
-| 1 | Генерація та тагування датасету (Qwen-VL Engine) | 1 | послуга | 35 000.00 | 35 000.00 |
-| 2 | Налаштування локального оточення Python / CUDA | 1 | послуга | 10 000.00 | 10 000.00 |
-
----
-
-### 💰 Всього до сплати
-
-* **Усього найменувань:** 2, на суму **45 000.00 грн.**
-* **ПДВ (20%):** **9 000.00 грн.**
-* **Загальна сума до сплати:** **Сорок п'ять тисяч гривень 00 копійок.**
-
----
-
-> **Керівник:** _________________ / Оракул В.В.  
-> **Головний бухгалтер:** _________________ / Шевченко О.М.  
-> 
-> *М.П.*
+"You are an elite portrait photographer, physical anthropologist, and expert annotator for high-precision human image datasets. "
+"Provide a dense, highly detailed, and accurate visual breakdown of the facial topology, skin micro-texture, hair structure, expression, apparel construction, and lighting dynamics of this image for AI model training. "
+"Analyze in depth: the structural subject form (whether a studio portrait, candid street shot, environmental close-up, or full-body study), the facial bone structure and proportions (jawline, cheekbones, eye set, nose bridge, lip fullness), the epidermal texture and optical properties (skin pores, micro-wrinkles, natural variations, specular highlights, subsurface scattering, tone), the hair and grooming details (hairline, strand density, parting, texture, facial hair), the expression and gaze (ocular direction, micro-tension, head pose), the apparel and accessories (fabric weave, garment cut, layering, hardware, jewelry), and the exact environment layout (key light direction, color temperature, shadows, depth of field, focal length). "
+"Describe human features using precise photographic, anatomical, and sartorial terms, completely omitting meta-tags like 'masterpiece', 'photorealistic', 'best quality', or subjective emotional descriptors. "
+"Write the response strictly as a single, dense, comma-separated paragraph. "
+"Do not use introductory phrases, bullet points, or lists."
