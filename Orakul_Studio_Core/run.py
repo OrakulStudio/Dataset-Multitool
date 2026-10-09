@@ -91,20 +91,23 @@ def check_venv():
 
 def clear_screen():
     os.system('cls' if os.name == 'nt' else 'clear')
-
+    
 # --- БЛОК ИНФОРМАЦИИ ОБ ОБНОВЛЕНИЯХ ---
 def draw_whats_new():
     changelog = (
         f"[bold cyan]ℹ️ {t('ЧТО НОВОГО В ВЕРСИИ:')}[/bold cyan]\n"
+        f"  • [green][NEW][/green] Qwen-VL Engine: {t('Добавлена поддержка 3 моделей (2.5-VL-7B, 3-VL-8B, 3-VL-30B-FP8).')}\n"
+        f"  • [yellow][TIP][/yellow] Qwen 2.5-VL: {t('Рекомендуется.')}\n"
         f"  • [green][NEW][/green] Crop & Rename: {t('Опциональный префикс (сохранение родных имён).')}\n"
         f"  • [green][NEW][/green] Crop & Rename: {t('Умная синхронизация парных .txt файлов (игнор кэша).')}\n"
         f"  • [yellow][UI][/yellow] {t('Обновлено меню: [L] вместо [LANG] для удобства ввода.')}"
     )
+    
     console.print(Panel(
         changelog,
         title=f"[bold yellow]🛠️ {t('ORAKUL DATASET MULTITOOL')}[/bold yellow]",
         title_align="left",
-        subtitle="[bold cyan]v2.0.1[/bold cyan]",
+        subtitle="[bold cyan]v2.1.0[/bold cyan]",
         subtitle_align="right",
         border_style="cyan",
         expand=False
@@ -112,7 +115,27 @@ def draw_whats_new():
 
 def run_qwen_task(script_path, task_name):
     console.print(f"\n[bold yellow]--- {task_name.upper()} ---[/bold yellow]")
-    target_folder = console.input(t("[bold cyan]Перетащи папку с картинками сюда:[/bold cyan] ")).strip(' "\'')
+    
+    # --- МЕНЮ ВЫБОРА МОДЕЛИ ---
+    console.print(t("\n[bold cyan]Выбери версию Qwen-VL:[/bold cyan]"))
+    console.print(t("  [1] Qwen 2.5-VL-7B-Instruct (~15 GB VRAM)"))
+    console.print(t("  [2] Qwen3-VL-8B-Instruct (~18 GB VRAM)"))
+    console.print(t("  [3] Qwen3-VL-30B-A3B-Instruct-FP8 (~32 GB VRAM / Тяжелая артиллерия)"))
+    
+    model_choice = console.input(t("\n[bold white]Твой выбор (1-3) [Enter=1]: [/bold white]")).strip()
+    
+    if model_choice == '3':
+        model_id = "Qwen/Qwen3-VL-30B-A3B-Instruct-FP8"
+        console.print(t("[bold green][+] Выбран мощный Qwen3-VL-30B-FP8![/bold green]"))
+    elif model_choice == '2':
+        model_id = "Qwen/Qwen3-VL-8B-Instruct"
+        console.print(t("[bold green][+] Выбран свежий Qwen3-VL-8B-Instruct![/bold green]"))
+    else:
+        model_id = "Qwen/Qwen2.5-VL-7B-Instruct"
+        console.print(t("[bold green][+] Выбран проверенный Qwen 2.5-VL-7B![/bold green]"))
+    # --------------------------
+    
+    target_folder = console.input(t("\n[bold cyan]Перетащи папку с картинками сюда:[/bold cyan] ")).strip(' "\'')
     
     if not os.path.exists(target_folder):
         console.print(t("[bold red][-] Ошибка: Папка не найдена![/bold red]"))
@@ -128,7 +151,10 @@ def run_qwen_task(script_path, task_name):
         return
 
     console.print("\n" + t("[bold green][+][/bold green] [bold white]Запускаем нейронку. Память выделена...[/bold white]"))
-    subprocess.run([str(VENV_PYTHON), str(script_path), target_folder, str(temp_prompt_file)])
+    
+    # Передаем model_id в конец аргументов (sys.argv[3])
+    subprocess.run([str(VENV_PYTHON), str(script_path), target_folder, str(temp_prompt_file), model_id])
+    
     console.print("\n" + t("[bold green][+][/bold green] [bold cyan]Процесс завершен! Видеопамять полностью освобождена.[/bold cyan]"))
 
 def run_simple_task(script_path, task_name):
@@ -146,6 +172,34 @@ def run_interactive_task(script_path, task_name):
     console.print(f"\n[bold green][+][/bold green] [bold white]{t('Запуск утилиты')} {task_name}...[/bold white]")
     subprocess.run([str(VENV_PYTHON), str(script_path)])
     console.print(f"\n[bold green][+][/bold green] [bold cyan]{t('Задача')} '{task_name}' {t('успешно выполнена!')}[/bold cyan]")
+
+def clone_ai_toolkit():
+    console.print(f"\n[bold yellow]--- {t('CLONE AI-TOOLKIT (WINDOWS 11)')} ---[/bold yellow]")
+    repo_url = "https://github.com/OrakulStudio/AI-Toolkit-Windows11"
+    
+    user_input = console.input(
+        t("\n[bold cyan]Укажи путь сохранения или перетащи папку [Enter = в папку утилиты]: [/bold cyan]")
+    ).strip(' "\'')
+    
+    if not user_input:
+        target_dir = BASE_DIR / "AI-Toolkit-Windows11"
+    else:
+        target_dir = Path(user_input) / "AI-Toolkit-Windows11"
+        
+    if target_dir.exists() and os.path.exists(target_dir) and len(os.listdir(target_dir)) > 0:
+        console.print(t(f"[bold red][-] Ошибка: Папка уже существует и не пуста:[/bold red] [yellow]{target_dir}[/yellow]"))
+        return
+        
+    console.print(f"\n[bold green][+][/bold green] {t('Клонируем репозиторий в:')} [bold cyan]{target_dir}[/bold cyan]...")
+    
+    try:
+        subprocess.run(["git", "clone", repo_url, str(target_dir)], check=True)
+        console.print(f"\n[bold green][✓] {t('Репозиторий успешно клонирован!')}[/bold green]")
+    except FileNotFoundError:
+        console.print(f"\n[bold red][-] {t('Ошибка: Git не установлен или не найден в PATH!')}[/bold red]")
+    except Exception as e:
+        console.print(f"\n[bold red][-] {t('Ошибка при клонировании:')}[/bold red]")
+        console.print(f"[dim]{e}[/dim]")
 
 def set_current_lang(lang_code):
     config_file = Path("config.json")
@@ -178,6 +232,7 @@ def main():
             "[bold cyan][7][/bold cyan] Weight Merger (Слияние весов Flux.2 & Z-Image)\n"
             "[bold cyan][8][/bold cyan] Dataset Manager (Аугментация датасета & Нумерация)\n"
             "[bold cyan][9][/bold cyan] Model Inspector (Параметры & Триггерные слова)\n"
+            "[bold cyan][10][/bold cyan] AI-Toolkit Win11 (Клонирование репозитория AI-Toolkit)\n"
             "[bold red][0][/bold red] Выход\n\n"
             "[bold magenta][L][/bold magenta] Смена языка (Language)"
         )
@@ -189,7 +244,7 @@ def main():
             expand=False
         ))
 
-        choice = console.input("\n" + t("[bold white]Выбери действие (0-9, l): [/bold white]")).strip().lower()
+        choice = console.input("\n" + t("[bold white]Выбери действие (0-10, l): [/bold white]")).strip().lower()
 
         if choice == '1':
             run_qwen_task(VIKING_SCRIPT, "Viking Caption")
@@ -218,6 +273,9 @@ def main():
         elif choice == '9':
             run_interactive_task(CHECK_SCRIPT, "Model Inspector")
             console.input("\n" + t("[dim]Нажми Enter для возврата...[/dim]")) 
+        elif choice == '10':
+            clone_ai_toolkit()
+            console.input("\n" + t("[dim]Нажми Enter для возврата...[/dim]"))
         elif choice in ['lang', 'l']:
             new_lang = console.input("\n" + t("[bold cyan]Выбери язык / Choose language (ru, en): [/bold cyan]")).strip().lower()
             if new_lang in ['ru', 'en']:

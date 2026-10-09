@@ -339,7 +339,28 @@
   "[bold cyan]2. Перетащи обработанный PNG после ретуши (или \"0\" для отмены):[/bold cyan] ": "[bold cyan]2. Drop processed PNG after retouching (or \"0\" to cancel):[/bold cyan] ",
   
   
+  "[bold cyan]Выбери версию Qwen (Full bf16 / Unquantized):[/bold cyan]": "[bold cyan]Choose Qwen version (Full bf16 / Unquantized):[/bold cyan]",
+  "  [1] Qwen 2.5 VL (7B) - ~15 GB VRAM": "  [1] Qwen 2.5 VL (7B) - ~15 GB VRAM",
+  "  [2] Qwen 3.5 Base (9B) - ~19.3 GB VRAM": "  [2] Qwen 3.5 Base (9B) - ~19.3 GB VRAM",
+  "[bold white]Твой выбор (1-2) [Enter=1]: [/bold white]": "[bold white]Your choice (1-2) [Enter=1]: [/bold white]",
+  "[bold green][+] Выбран Qwen 3.5 (19.3 GB)[/bold green]": "[bold green][+] Selected Qwen 3.5 (19.3 GB)[/bold green]",
+  "[bold green][+] Выбран Qwen 2.5 (15 GB)[/bold green]": "[bold green][+] Selected Qwen 2.5 (15 GB)[/bold green]",
   
+  "[bold red][ERROR] Скрипт нужно запускать через пульт run.py (не передан ID модели)![/bold red]": "[bold red][ERROR] Launch the script via run.py (model ID not provided)![/bold red]",
+  
+  
+  "Добавлена поддержка 3 моделей (2.5-VL-7B, 3-VL-8B, 3-VL-30B-FP8).": "Added support for 3 models (2.5-VL-7B, 3-VL-8B, 3-VL-30B-FP8).",
+  "Рекомендуется.": "Recommended.",
+  
+  
+  "[bold cyan][10][/bold cyan] AI-Toolkit Win11 (Клонирование репозитория AI-Toolkit)": "[bold cyan][10][/bold cyan] AI-Toolkit Win11 (Clone AI-Toolkit Repository)",
+  "CLONE AI-TOOLKIT (WINDOWS 11)": "CLONE AI-TOOLKIT (WINDOWS 11)",
+  "\n[bold cyan]Укажи путь сохранения или перетащи папку [Enter = в папку утилиты]: [/bold cyan]": "\n[bold cyan]Enter save path or drag & drop folder [Enter = tool folder]: [/bold cyan]",
+  "[bold red][-] Ошибка: Папка уже существует и не пуста:[/bold red]": "[bold red][-] Error: Folder already exists and is not empty:[/bold red]",
+  "Клонируем репозиторий в:": "Cloning repository to:",
+  "[bold green][✓] Репозиторий успешно клонирован![/bold green]": "[bold green][✓] Repository cloned successfully!",
+  "Ошибка: Git не установлен или не найден в PATH!": "Error: Git is not installed or not found in PATH!",
+  "Ошибка при клонировании:": "Error during cloning:",
   
   
   

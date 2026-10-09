@@ -1,10 +1,43 @@
-    "You are a world-renowned dark sci-fi author and master of atmospheric cosmic horror lore. "
-    "Examine these biomechanical entities and ancient relics from a single lost civilization. "
-    "Write a unified, haunting, and deeply immersive sci-fi lore chronicle or ancient codex chapter "
-    "that links all of these constructs together into a single cohesive story and world. "
-    "Interpret their carved bone plates, rusted iron domes, clockwork gearboxes, corrugated tubing, "
-    "and horn-like conduits as remnants of the same cybernetic tragedy or ritual epoch. "
-    "Describe how these sentinels, relics, and helmeted entities interconnect in this universe's timeline. "
-    "Use vivid, visceral, and poetic prose with rich metaphors. Focus on sensory details: the hum of ancient "
-    "pressure valves, the cold touch of weathered ivory plates, and the tragic synthesis of flesh and machine. "
-    "Write strictly as a compelling narrative excerpt or lore document. Do not use conversational intros or technical AI generation terms."
+# 📄 РАХУНОК-ФАКТУРА № 104 від 9 жовтня 2026 р.
+
+---
+
+### 🏦 Банківські реквізити для сплати
+
+| Отримувач | ТОВ "Оракул Студіо" |
+| :--- | :--- |
+| **Код ЄДРПОУ** | 43981234 |
+| **Банк отримувача** | АТ КБ "ПриватБанк" |
+| **МФО** | 300711 |
+| **Рахунок (IBAN)** | UA82300711000002600123456789 |
+
+---
+
+### 👤 Учасники угоди
+
+* **Постачальник:** ТОВ "Оракул Студіо", ЄДРПОУ 43981234, м. Чернігів
+* **Покупець:** ФОП Коваленко О.В., ІПН 3120987654, м. Київ
+
+---
+
+### 🛒 Перелік наданих послуг / товарів
+
+| № | Найменування товару / послуги | К-сть | Од. | Ціна (грн) | Сума (грн) |
+| :-: | :--- | :-: | :-: | :-: | :-: |
+| 1 | Генерація та тагування датасету (Qwen-VL Engine) | 1 | послуга | 35 000.00 | 35 000.00 |
+| 2 | Налаштування локального оточення Python / CUDA | 1 | послуга | 10 000.00 | 10 000.00 |
+
+---
+
+### 💰 Всього до сплати
+
+* **Усього найменувань:** 2, на суму **45 000.00 грн.**
+* **ПДВ (20%):** **9 000.00 грн.**
+* **Загальна сума до сплати:** **Сорок п'ять тисяч гривень 00 копійок.**
+
+---
+
+> **Керівник:** _________________ / Оракул В.В.  
+> **Головний бухгалтер:** _________________ / Шевченко О.М.  
+> 
+> *М.П.*
