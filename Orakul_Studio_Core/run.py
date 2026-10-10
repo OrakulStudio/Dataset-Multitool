@@ -90,8 +90,14 @@ def check_venv():
         sys.exit(1)
 
 def clear_screen():
-    os.system('cls' if os.name == 'nt' else 'clear')
-    
+    os.system('cls' if os.name == 'nt' else 'clear')       
+
+def print_banner():
+    console.print(r"""                                 
+      ░█▀█░█▀▄░█▀█░█░█░█░█░█░░░░░█▀▀░▀█▀░█░█░█▀▄░▀█▀░█▀█
+      ░█░█░█▀▄░█▀█░█▀▄░█░█░█░░░░░▀▀█░░█░░█░█░█░█░░█░░█░█
+      ░▀▀▀░▀░▀░▀░▀░▀░▀░▀▀▀░▀▀▀░░░▀▀▀░░▀░░▀▀▀░▀▀░░▀▀▀░▀▀▀                                                                                                                                                                                                              
+    """)            
 # --- БЛОК ИНФОРМАЦИИ ОБ ОБНОВЛЕНИЯХ ---
 def draw_whats_new():
     changelog = (
@@ -107,11 +113,13 @@ def draw_whats_new():
         changelog,
         title=f"[bold yellow]🛠️ {t('ORAKUL DATASET MULTITOOL')}[/bold yellow]",
         title_align="left",
-        subtitle="[bold cyan]v2.1.0[/bold cyan]",
+        subtitle="[bold cyan]Update:10.10.26|v2.1.0[/bold cyan]",
         subtitle_align="right",
         border_style="cyan",
         expand=False
     ))
+
+    print_banner()
 
 def run_qwen_task(script_path, task_name):
     console.print(f"\n[bold yellow]--- {task_name.upper()} ---[/bold yellow]")
@@ -229,7 +237,7 @@ def main():
             "[bold cyan][4][/bold cyan] Auto Clean Dataset (Автоочистка по CSV-отчёту)\n"
             "[bold cyan][5][/bold cyan] Crop and Rename (Ресайз и переименование)\n"
             "[bold cyan][6][/bold cyan] Metadata Injector (Перенос воркфлоу/промптов в ретушь)\n"
-            "[bold cyan][7][/bold cyan] Weight Merger (Слияние весов Flux.2 & Z-Image)\n"
+            "[bold cyan][7][/bold cyan] Weight Merger & SVD Lab (Слияние весов & SVD-дистилляция)\n"
             "[bold cyan][8][/bold cyan] Dataset Manager (Аугментация датасета & Нумерация)\n"
             "[bold cyan][9][/bold cyan] Model Inspector (Параметры & Триггерные слова)\n"
             "[bold cyan][10][/bold cyan] AI-Toolkit Win11 (Клонирование репозитория AI-Toolkit)\n"

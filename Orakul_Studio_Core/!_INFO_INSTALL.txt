@@ -1,0 +1,34 @@
+=========================================================
+    ____           __        __  ______          ___        
+   / __ \_______ _/ /____ __/ / / __/ /___ _____/ (_)__     
+  / /_/ / __/ _ `/  '_/ // / / _\ \/ __/ // / _  / / _ \    
+  \____/_/  \_,_/_/\_\\_,_/_/ /___/\__/\_,_/\_,_/_/\___/    
+                                                          
+
+=========================================================
+  ОПИСАНИЕ СТРУКТУРЫ / PROJECT STRUCTURE QUICK GUIDE
+=========================================================
+
+Orakul_Studio_Core/
+├── 📁 orakul_env/       <-- [RU] Виртуальное окружение (создается автоматически)
+│                            [EN] Virtual environment (created automatically)
+│
+├── 📄 1_SETUP.bat       <-- [RU] ШАГ 1: Запустить один раз для установки
+│                            [EN] STEP 1: Run once to install dependencies
+│
+├── 📄 2_RUN.bat         <-- [RU] ШАГ 2: Главный запуск утилиты (работать тут)
+│                            [EN] STEP 2: Main utility launcher (work here)
+│
+├── 📄 requirements.txt  <-- [RU] Системные зависимости / [EN] System requirements
+└── 📄 README.md         <-- [RU] Подробная инструкция / [EN] Detailed manual
+
+=========================================================
+[RU] ВНИМАНИЕ: Остальные файлы .py и .json — это системные 
+     модули. Запускать их вручную НЕ НУЖНО.
+     
+[EN] NOTE: All other .py and .json files are core system 
+     modules. DO NOT run them manually.
+=========================================================
+
+GitHub: https://github.com/OrakulStudio
+Civitai: https://civitai.com/user/ORAKUL_STUDIO
