@@ -18,6 +18,9 @@ from pathlib import Path
 from rich.console import Console
 from rich.panel import Panel
 
+from updater import check_for_updates
+
+
 def t(text: str) -> str:
     config_file = Path("config.json")
     lang = "ru"
@@ -297,4 +300,7 @@ def main():
             break
 
 if __name__ == "__main__":
+    # 1. Проверяем свежий коммит на GitHub перед стартом
+    check_for_updates()  
+    print("Запуск MultiTool...")   
     main()
