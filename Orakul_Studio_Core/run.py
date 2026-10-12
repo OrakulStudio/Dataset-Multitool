@@ -101,28 +101,8 @@ def print_banner():
       ░█░█░█▀▄░█▀█░█▀▄░█░█░█░░░░░▀▀█░░█░░█░█░█░█░░█░░█░█
       ░▀▀▀░▀░▀░▀░▀░▀░▀░▀▀▀░▀▀▀░░░▀▀▀░░▀░░▀▀▀░▀▀░░▀▀▀░▀▀▀                                                                                                                                                                                                              
     """)            
-# --- БЛОК ИНФОРМАЦИИ ОБ ОБНОВЛЕНИЯХ ---
-def draw_whats_new():
-    changelog = (
-        f"[bold cyan]ℹ️ {t('ЧТО НОВОГО В ВЕРСИИ:')}[/bold cyan]\n"
-        f"  • [green][NEW][/green] Qwen-VL Engine: {t('Добавлена поддержка 3 моделей (2.5-VL-7B, 3-VL-8B, 3-VL-30B-FP8).')}\n"
-        f"  • [yellow][TIP][/yellow] Qwen 2.5-VL: {t('Рекомендуется.')}\n"
-        f"  • [green][NEW][/green] Crop & Rename: {t('Опциональный префикс (сохранение родных имён).')}\n"
-        f"  • [green][NEW][/green] Crop & Rename: {t('Умная синхронизация парных .txt файлов (игнор кэша).')}\n"
-        f"  • [yellow][UI][/yellow] {t('Обновлено меню: [L] вместо [LANG] для удобства ввода.')}"
-    )
-    
-    console.print(Panel(
-        changelog,
-        title=f"[bold yellow]🛠️ {t('ORAKUL DATASET MULTITOOL')}[/bold yellow]",
-        title_align="left",
-        subtitle="[bold cyan]Update:10.10.26|v2.1.0[/bold cyan]",
-        subtitle_align="right",
-        border_style="cyan",
-        expand=False
-    ))
 
-    print_banner()
+    
 
 def run_qwen_task(script_path, task_name):
     console.print(f"\n[bold yellow]--- {task_name.upper()} ---[/bold yellow]")
@@ -230,8 +210,8 @@ def main():
     while True:
         clear_screen()
         
-        # Отрисовка шапки с версией
-        draw_whats_new()
+        #лого 
+        print_banner()
         
         menu_text = (
             "[bold cyan][1][/bold cyan] Viking Caption (Техническая разметка датасета)\n"

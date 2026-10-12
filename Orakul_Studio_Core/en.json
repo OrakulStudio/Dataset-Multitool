@@ -363,6 +363,16 @@
   "Ошибка при клонировании:": "Error during cloning:",
   
   
+  "[bold magenta][6][/bold magenta] [bold yellow]Z-Image: SAEP-SVD Distillation (Orakul Studio Custom)[/bold yellow]": "[bold magenta][6][/bold magenta] [bold yellow]Z-Image: SAEP-SVD Distillation (Orakul Studio Custom)[/bold yellow]",
+  "[bold yellow]⚡ Z-IMAGE SAEP-SVD DISTILLATION (Sign Alignment & Energy Preservation) ⚡[/bold yellow]\n[dim]Авторский алгоритм Orakul Studio для экстремальных рангов Z-Image (Rank 2048 -> Rank k)[/dim]": "[bold yellow]⚡ Z-IMAGE SAEP-SVD DISTILLATION (Sign Alignment & Energy Preservation) ⚡[/bold yellow]\n[dim]Custom Orakul Studio algorithm for extreme Z-Image ranks (Rank 2048 -> Rank k)[/dim]",
+  "[bold cyan]1. Перетащи исходную высокоранговую LoRA Z-Image (.safetensors): [/bold cyan]": "[bold cyan]1. Drag and drop the source high-rank Z-Image LoRA (.safetensors): [/bold cyan]",
+  "[bold cyan]2. Укажи имя, путь или перетащи папку сохранения: [/bold cyan]": "[bold cyan]2. Enter name, path or drag the save folder: [/bold cyan]",
+  "[bold cyan]3. Введи целевой ранг (Target Rank, например: 256)[/bold cyan]": "[bold cyan]3. Enter Target Rank (e.g., 256)[/bold cyan]",
+  "[bold cyan]Загрузка LoRA Z-Image в RAM...[/bold cyan]": "[bold cyan]Loading Z-Image LoRA into RAM...[/bold cyan]",
+  "SAEP-SVD Дистилляция (до Rank ": "SAEP-SVD Distillation (to Rank ",
+  "• [bold magenta]{task.completed}/{task.total}[/] матриц": "• [bold magenta]{task.completed}/{task.total}[/] matrices",
+  "[bold green]Запись SAEP-дистиллята на диск...[/bold green]": "[bold green]Saving SAEP-distilled model to disk...[/bold green]",
+  
   
   
   

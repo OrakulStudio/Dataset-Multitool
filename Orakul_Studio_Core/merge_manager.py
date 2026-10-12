@@ -597,8 +597,133 @@ def compress_lora_svd_ui():
 
     with console.status(t("[bold green]Запись дистиллированной LoRA на диск...[/bold green]"), spinner="dots"):
         save_file(new_state_dict, output_path, metadata=new_metadata)
+        
 
-    _show_summary(f"SVD DISTILLATION (Rank {target_rank})", processed_count, len(pairs), output_path, start_time)
+# =========================================================================
+# 6. Z-IMAGE SAEP-SVD DISTILLATION (Orakul Studio Custom)
+# =========================================================================
+def compress_z_image_saep_svd():
+    console.print(Panel(t("[bold yellow]⚡ Z-IMAGE SAEP-SVD DISTILLATION (Sign Alignment & Energy Preservation) ⚡[/bold yellow]\n[dim]Авторский алгоритм Orakul Studio для экстремальных рангов Z-Image (Rank 2048 -> Rank k)[/dim]"), expand=False))
+
+    input_path = clean_path(console.input("\n" + t("[bold cyan]1. Перетащи исходную высокоранговую LoRA Z-Image (.safetensors): [/bold cyan]")))
+    if not os.path.exists(input_path):
+        console.print(t("[bold red]❌ Ошибка: Исходный файл не найден![/bold red]"))
+        return
+
+    output_path = resolve_output_path("\n" + t("[bold cyan]2. Укажи имя, путь или перетащи папку сохранения: [/bold cyan]"), "ZImage_SAEP_Distilled.safetensors")
+    target_rank = get_int_input(t("[bold cyan]3. Введи целевой ранг (Target Rank, например: 256)[/bold cyan]"), 256)
+
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    if device == "cuda":
+        console.print(t("[bold green]🚀 Подключено GPU-ускорение:[/bold green]") + f" [bold yellow]{torch.cuda.get_device_name(0)}[/bold yellow]\n")
+
+    start_time = time.time()
+    metadata = {}
+    try:
+        with safe_open(input_path, framework="pt") as f:
+            metadata = f.metadata() or {}
+    except Exception:
+        pass
+
+    with console.status(t("[bold cyan]Загрузка LoRA Z-Image в RAM...[/bold cyan]"), spinner="dots"):
+        state_dict = load_file(input_path)
+
+    new_state_dict = {}
+    pairs = {}
+
+    for key in state_dict.keys():
+        if ".lora_down.weight" in key or ".lora_A.weight" in key:
+            base = key.replace(".lora_down.weight", "").replace(".lora_A.weight", "")
+            pairs.setdefault(base, {})["A"] = key
+        elif ".lora_B.weight" in key or ".lora_up.weight" in key:
+            base = key.replace(".lora_up.weight", "").replace(".lora_B.weight", "")
+            pairs.setdefault(base, {})["B"] = key
+        else:
+            new_state_dict[key] = state_dict[key]
+
+    processed_count = 0
+
+    with Progress(
+        SpinnerColumn("dots", style="bold yellow"),
+        TextColumn("[bold cyan]{task.description}"),
+        BarColumn(bar_width=35, style="black", complete_style="bold green", finished_style="bold green"),
+        TaskProgressColumn("[bold yellow]{task.percentage:>3.0f}%"),
+        TextColumn(t("• [bold magenta]{task.completed}/{task.total}[/] матриц")),
+        TimeElapsedColumn(),
+        TimeRemainingColumn(),
+        console=console,
+    ) as progress:
+        task = progress.add_task(t("SAEP-SVD Дистилляция (до Rank ") + f"{target_rank})", total=len(pairs))
+
+        for base_key, pair in pairs.items():
+            if "A" not in pair or "B" not in pair:
+                progress.update(task, advance=1)
+                continue
+
+            key_A, key_B = pair["A"], pair["B"]
+            w_A = state_dict[key_A].to(device, dtype=torch.float32)
+            w_B = state_dict[key_B].to(device, dtype=torch.float32)
+
+            orig_shape_A = w_A.shape
+            if w_A.dim() == 4:
+                w_A = w_A.squeeze(-1).squeeze(-1)
+                w_B = w_B.squeeze(-1).squeeze(-1)
+
+            # Восстанавливаем оригинальные веса
+            delta_w = torch.matmul(w_B, w_A)
+            
+            # SVD Разложение
+            U, S, Vh = torch.linalg.svd(delta_w, full_matrices=False)
+            
+            r = min(target_rank, S.shape[0])
+            
+            # 1. Sign Alignment (Выравнивание знака)
+            # Если сумма по столбцу U отрицательная - инвертируем U и V
+            u_sums = torch.sum(U[:, :r], dim=0)
+            sign_mask = torch.where(u_sums < 0, torch.tensor(-1.0, device=device), torch.tensor(1.0, device=device))
+            
+            U_r = U[:, :r] * sign_mask
+            Vh_r = Vh[:r, :] * sign_mask.unsqueeze(1)
+            
+            # 2. Energy Preservation (Сохранение энергии)
+            S_r = S[:r].clone()
+            if r < S.shape[0]:
+                # Считаем остаточную энергию отсекаемого хвоста
+                residual_energy = torch.sqrt(torch.sum(S[r:] ** 2))
+                # Инъекция фракции энергии в нижнюю границу (последние 10% ранга)
+                inject_start = max(0, r - int(r * 0.1))
+                injection_per_value = residual_energy / (r - inject_start)
+                S_r[inject_start:] += injection_per_value
+
+            sqrt_S = torch.diag(torch.sqrt(S_r))
+            new_B = torch.matmul(U_r, sqrt_S)
+            new_A = torch.matmul(sqrt_S, Vh_r)
+
+            if len(orig_shape_A) == 4:
+                new_A = new_A.unsqueeze(-1).unsqueeze(-1)
+                new_B = new_B.unsqueeze(-1).unsqueeze(-1)
+
+            orig_dtype = state_dict[key_A].dtype
+            new_state_dict[key_A] = new_A.to(orig_dtype).cpu()
+            new_state_dict[key_B] = new_B.to(orig_dtype).cpu()
+
+            alpha_key = base_key + ".alpha"
+            if alpha_key in new_state_dict:
+                new_state_dict[alpha_key] = torch.tensor(float(r), dtype=torch.float32)
+
+            del w_A, w_B, delta_w, U, S, Vh, U_r, S_r, Vh_r, sqrt_S, new_A, new_B
+            processed_count += 1
+            progress.update(task, advance=1)
+
+    new_metadata = dict(metadata)
+    new_metadata["ss_network_dim"] = str(target_rank)
+    new_metadata["ss_network_alpha"] = str(target_rank)
+    new_metadata["distillation_method"] = "SAEP-SVD (Orakul Studio)"
+
+    with console.status(t("[bold green]Запись SAEP-дистиллята на диск...[/bold green]"), spinner="dots"):
+        save_file(new_state_dict, output_path, metadata=new_metadata)
+
+    _show_summary(f"SAEP-SVD (Rank {target_rank})", processed_count, len(pairs), output_path, start_time)      
 
 
 # =========================================================================
@@ -634,12 +759,13 @@ def main():
             t("[bold cyan][2][/bold cyan] Flux.2: LoRA + LoRA (Конкатенация рангов r1 + r2)") + "\n" +
             t("[bold cyan][3][/bold cyan] Z-Image: LoRA + LoRA (Конкатенация рангов)") + "\n" +
             t("[bold cyan][4][/bold cyan] Z-Image: Base Model + LoRA (Инъекция с умным резолвером)") + "\n" +
-            t("[bold cyan][5][/bold cyan] LoRA SVD Distillation (Сжатие гибридов до целевого ранга)") + "\n" +
+            t("[bold cyan][5][/bold cyan] LoRA SVD Distillation (Стандартное SVD сжатие)") + "\n" +
+            t("[bold magenta][6][/bold magenta] [bold yellow]Z-Image: SAEP-SVD Distillation (Orakul Studio Custom)[/bold yellow]") + "\n" +
             t("[bold red][0][/bold red] Назад в главное меню")
         )
         console.print(Panel(menu_text, title=t("[bold yellow]⚡ ORAKUL STUDIO • WEIGHT MERGER HUB ⚡[/bold yellow]"), border_style="yellow", expand=False))
         
-        choice = console.input("\n" + t("[bold white]Выбери режим слияния (0-5): [/bold white]")).strip()
+        choice = console.input("\n" + t("[bold white]Выбери режим слияния (0-6): [/bold white]")).strip()
 
         if choice == '1':
             merge_flux_base_lora()
@@ -655,6 +781,9 @@ def main():
             break
         elif choice == '5':
             compress_lora_svd_ui()
+            break
+        elif choice == '6':
+            compress_z_image_saep_svd()
             break
         elif choice == '0':
             break
