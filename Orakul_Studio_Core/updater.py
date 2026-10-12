@@ -224,7 +224,7 @@ def draw_whats_new():
           changelog,
           title='[bold yellow]🛠️ ORAKUL DATASET MULTITOOL[/bold yellow]',
           title_align='left',
-          subtitle='[bold cyan]Update:12.10.26|v2.1.0[/bold cyan]',
+          subtitle='[bold cyan]Update:12.10.26|v2.1.1[/bold cyan]',
           subtitle_align='right',
           border_style='cyan',
           expand=False,
