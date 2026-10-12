@@ -1,5 +1,14 @@
 # 🛠️ Orakul Toolkit: Viking Multi-tool
 
+```
+Release v2.1.1 (12.10.2026)
+feat(updater): full repo ZIP sync & self-healing architecture
+Switched update logic from `git pull` to full synchronization via GitHub ZIP archives.
+Added a self-healing function: restores any deleted or corrupted scripts from scratch.
+Completely independent of the user having Git installed.
+Preserves user data: configs, datasets, and outputs are not overwritten.
+Added a live loading animation (rich status) and fixed UTF-8 encoding in the Windows console.
+```
 🚀 Orakul Dataset Multitool  Release v2.1.0
 ⏳ TONIGHT'S DROP: Integration of the heavyweight Qwen 3.5 Base / Qwen-VL family in pure bf16 is complete! Tests are passed, and the v2.1.0 release is live right after the evening power-up.
 
