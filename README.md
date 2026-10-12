@@ -2,12 +2,23 @@
 
 ```
 Release v2.1.1 (12.10.2026)
-feat(updater): full repo ZIP sync & self-healing architecture
-Switched update logic from `git pull` to full synchronization via GitHub ZIP archives.
-Added a self-healing function: restores any deleted or corrupted scripts from scratch.
-Completely independent of the user having Git installed.
-Preserves user data: configs, datasets, and outputs are not overwritten.
-Added a live loading animation (rich status) and fixed UTF-8 encoding in the Windows console.
+Major Update: Dataset Manager + Updater
+
+The dataset management section has been completely overhauled today.
+
+Previously, some operations were combined (e.g., cropping + renaming, shuffling + creating duplicates). Now, each tool performs exactly one specific task:
+
+1. Crop & Resize  performs only center-based square cropping and resizing; does not alter filenames.
+2. Quick Shuffle  shuffles the file order directly within the specified folder (without creating copies).
+3. Mirror Flip  mirrors images in place and automatically updates "left"/"right" references in captions.
+4. Dataset Multiplier  performs standard augmentation (original + mirrored version) into a new folder.
+5. Batch Rename  straightforward renaming with options for prefixes and digit counts.
+
+Crucially, during shuffling and renaming, the associated .txt files remain strictly paired with their corresponding images.
+
+An Updater has also been added:
+- Checks for new commits whenever the utility is launched.
+- Can fully restore the entire set of working scripts, even if only the updater file itself remains in the folder.
 ```
 🚀 Orakul Dataset Multitool  Release v2.1.0
 ⏳ TONIGHT'S DROP: Integration of the heavyweight Qwen 3.5 Base / Qwen-VL family in pure bf16 is complete! Tests are passed, and the v2.1.0 release is live right after the evening power-up.
