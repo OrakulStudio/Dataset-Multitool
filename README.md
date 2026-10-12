@@ -1,7 +1,7 @@
 # 🛠️ Orakul Toolkit: Viking Multi-tool
 
-Release v2.1.1 (12.10.2026)
-**### feat(updater): full repo ZIP sync & self-healing architecture**
+#Release v2.1.1 (12.10.2026)
+feat(updater): full repo ZIP sync & self-healing architecture
 Switched update logic from `git pull` to full synchronization via GitHub ZIP archives.
 Added a self-healing function: restores any deleted or corrupted scripts from scratch.
 Completely independent of the user having Git installed.
