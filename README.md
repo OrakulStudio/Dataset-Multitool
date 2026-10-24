@@ -40,7 +40,7 @@ Optional Prefix (Keep Original Names): You can now leave the prefix field blank 
 Smart Paired .txt Sync: Automatic sync for paired text files. Bypasses cache conflicts and syncs descriptions seamlessly with updated image names.
 
 🌐 UI & i18n (Multilingual Engine)
-Instant Language Switch: Updated menu shortcuts — use [L] for lightning-fast runtime switching between English, Russian, and Chinese.
+Instant Language Switch: Updated menu shortcuts  use [L] for lightning-fast runtime switching between English, Russian, and Chinese.
 
 Full Dictionary Coverage: Added missing translation keys and color-tag formatting across all workflow screens.
 
@@ -163,7 +163,7 @@ Upon the first launch of **Viking Caption** or **Qwen Poem**, the utility will p
 
 ## 📜 License
 
-This project is licensed under the **MIT License**  free for personal and commercial use. See the [`LICENSE`](LICENSE) file for details.
+This project is licensed under the **MIT License**  free for personal and commercial use. See the [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://members.opensource.org/user/roman-nykonov) file for details.
 
 ## 🔗 Links
 
