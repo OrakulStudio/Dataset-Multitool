@@ -1,7 +1,15 @@
-#!/usr/bin/env python3
-"""
-Универсальный сканер качества кэпшенов (Caption QC Scanner) с поддержкой rich.
-"""
+# ==============================================================================
+#  ORAKUL CORE — AI Dataset & Model MultiTool
+#  Module: Caption QC Scanner
+# ------------------------------------------------------------------------------
+#  Author:      Orakul (Orakul Studio)
+#  GitHub:      https://github.com/OrakulStudio
+#  Civitai:     https://civitai.com/user/ORAKUL_STUDIO
+#  HuggingFace: https://huggingface.co/OrakulStorm
+# ------------------------------------------------------------------------------
+#  Description: Universal caption quality scanner with statistical analysis.
+#  Copyright (c) 2026 Orakul Studio. All rights reserved.
+# ==============================================================================
 
 import argparse
 import csv
@@ -13,21 +21,21 @@ from pathlib import Path
 from statistics import mean, stdev
 from rich.console import Console
 from rich.panel import Panel
+from rich import box
 
-# --- ФУНКЦИЯ ПЕРЕВОДА ИЗ ГЛАВНОГО ФАЙЛА ---
 def t(text: str) -> str:
-    """Чистый переводчик: читает config.json, открывает {lang}.json и возвращает текст"""
+    """Translation helper. Currently returns English. Ready for future i18n."""
     config_file = Path("config.json")
-    lang = "ru"
+    lang = "en"
     
     if config_file.exists():
         try:
             with open(config_file, "r", encoding="utf-8") as f:
-                lang = json.load(f).get("language", "ru")
+                lang = json.load(f).get("language", "en")
         except Exception:
             pass
             
-    if lang == "ru" or not text:
+    if lang == "en" or not text:
         return text
         
     lang_file = Path(f"{lang}.json")
@@ -52,7 +60,6 @@ def t(text: str) -> str:
         pass
         
     return text
-# -----------------------------------------
 
 console = Console()
 
@@ -92,11 +99,11 @@ def check_headers(text: str, headers: set[str]) -> list[str]:
         if total == 0:
             continue
         if total >= 2:
-            reasons.append(t("ПОВТОР ЗАГОЛОВКА '") + phrase + t("' ×") + str(total))
+            reasons.append(f"REPEATED HEADER '{phrase}' ×{total}")
         if total > as_header:
             bare_leaks.append(phrase)
     if bare_leaks:
-        reasons.append(t("УТЕЧКА ЗАГОЛОВКА БЕЗ ДВОЕТОЧИЯ: ") + ", ".join(bare_leaks))
+        reasons.append("HEADER LEAK WITHOUT COLON: " + ", ".join(bare_leaks))
     return reasons
 
 def near_duplicate_halves(text: str, threshold: float = 0.6) -> bool:
@@ -127,7 +134,11 @@ def excessive_word_repeat(text: str, exclude: set[str], min_count: int = 12, max
 def scan_folder(folder: Path, min_header_files: int):
     files = sorted(folder.glob("*.txt"))
     if not files:
-        console.print(t("[bold red][-] Файлы .txt не найдены в папке: ") + str(folder) + t("[/bold red]"))
+        console.print(Panel(
+            f"[bold white]\\[ERROR][/bold white] [dim]No .txt files found in folder: {folder}[/dim]",
+            border_style="grey50",
+            box=box.ROUNDED
+        ))
         sys.exit(1)
 
     records = [
@@ -148,70 +159,75 @@ def scan_folder(folder: Path, min_header_files: int):
         reasons = check_headers(r["text"], headers)
 
         if near_duplicate_halves(r["text"]):
-            reasons.append(t("ЗАЦИКЛИВАНИЕ ТЕКСТА (первая и вторая половина совпадают >60%)"))
+            reasons.append("TEXT LOOPING (first and second half match >60%)")
 
         repeats = excessive_word_repeat(r["text"], exclude_words)
         if repeats:
-            reasons.append(t("СПАМ ОДНОГО СЛОВА: ") + ", ".join(repeats))
+            reasons.append("WORD SPAM: " + ", ".join(repeats))
 
         if sd > 0:
             z = (r["word_count"] - avg) / sd
             if abs(z) > 2.2:
-                direction = t("длинный") if z > 0 else t("короткий")
-                reasons.append(t("АНОМАЛЬНАЯ ДЛИНА (слишком ") + direction + t(", ") + str(r['word_count']) + t(" слов при среднем ") + f"{avg:.0f}" + t(")"))
+                direction = "long" if z > 0 else "short"
+                reasons.append(f"ANOMALOUS LENGTH (too {direction}, {r['word_count']} words vs average {avg:.0f})")
 
         if reasons:
             flagged.append({
-                t("Имя_файла"): r["file"], 
-                t("Количество_слов"): r["word_count"], 
-                t("Причины_замечаний"): " | ".join(reasons)
+                "Filename": r["file"], 
+                "Word_count": r["word_count"], 
+                "Issues": " | ".join(reasons)
             })
 
     return flagged, len(records), headers
 
 def main():
-    ap = argparse.ArgumentParser(description=t("Универсальный сканер качества кэпшенов"))
-    ap.add_argument("folder", type=Path, nargs="?", default=Path("."), help=t("Путь к папке с .txt файлами"))
-    ap.add_argument("--min-header-files", type=int, default=None, help=t("Минимум файлов для заголовка"))
+    ap = argparse.ArgumentParser(description="Universal caption quality scanner")
+    ap.add_argument("folder", type=Path, nargs="?", default=Path("."), help="Path to folder with .txt files")
+    ap.add_argument("--min-header-files", type=int, default=None, help="Minimum files for a header to be considered systemic")
     args = ap.parse_args()
 
     target_folder = args.folder.resolve()
     files_count = len(list(target_folder.glob("*.txt")))
     
     if files_count == 0:
-        console.print(t("[bold red][-] В папке ") + str(target_folder) + t(" нет .txt файлов![/bold red]"))
+        console.print(Panel(
+            f"[bold white]\\[ERROR][/bold white] [dim]No .txt files found in folder: {target_folder}[/dim]",
+            border_style="grey50",
+            box=box.ROUNDED
+        ))
         sys.exit(1)
 
     min_header_files = args.min_header_files or max(3, round(files_count * 0.10))
 
-    with console.status(t("[bold yellow]Сканирование датасета и анализ структур...[/bold yellow]"), spinner="dots"):
+    with console.status("[dim]Scanning dataset and analyzing structure...[/dim]", spinner="dots"):
         flagged, total, headers = scan_folder(target_folder, min_header_files)
 
-    out_path = target_folder / t("отчет_проверки_капшенов.csv")
+    out_path = target_folder / "caption_qc_report.csv"
     with out_path.open("w", newline="", encoding="utf-8-sig") as f:
-        writer = csv.DictWriter(f, fieldnames=[t("Имя_файла"), t("Количество_слов"), t("Причины_замечаний")])
+        writer = csv.DictWriter(f, fieldnames=["Filename", "Word_count", "Issues"])
         writer.writeheader()
         writer.writerows(flagged)
 
     panel_text = (
-        t("[bold cyan]Просканировано файлов:[/bold cyan] ") + str(total) + "\n" +
-        t("[bold cyan]Определено системных заголовков:[/bold cyan] ") + str(len(headers)) + "\n" +
-        t("[bold yellow]Файлов с замечаниями:[/bold yellow] ") + str(len(flagged)) + f" [dim]({(len(flagged)/total)*100:.1f}%)[/dim]\n" +
-        t("[bold green]Отчёт сохранён:[/bold green] ") + str(out_path.name)
+        f"[white]Files scanned:[/white] [dim]{total}[/dim]\n"
+        f"[white]System headers detected:[/white] [dim]{len(headers)}[/dim]\n"
+        f"[white]Files with issues:[/white] [dim]{len(flagged)} ({(len(flagged)/total)*100:.1f}%)[/dim]\n"
+        f"[white]Report saved:[/white] [dim]{out_path.name}[/dim]"
     )
 
     console.print(Panel(
         panel_text,
-        title=t("[bold green]📊 РЕЗУЛЬТАТЫ СКАНЕРА QC[/bold green]"),
-        border_style="green"
+        title="[bold white] QC SCANNER RESULTS [/bold white]",
+        border_style="grey50",
+        box=box.ROUNDED
     ))
 
     if flagged:
-        console.print("\n" + t("[bold yellow]🔍 ТОП НАЙДЕННЫХ ПРОБЛЕМ:[/bold yellow]"))
+        console.print("\n[bold white]Top found issues:[/bold white]")
         for r in flagged[:15]:
-            console.print(f"  • [bold white]{r[t('Имя_файла')]}[/bold white]: [red]{r[t('Причины_замечаний')]}[/red]")
+            console.print(f"  • [white]{r['Filename']}[/white]: [dim]{r['Issues']}[/dim]")
         if len(flagged) > 15:
-            console.print(t("  [dim]... и ещё ") + str(len(flagged) - 15) + t(" файлов смотрите в CSV-отчёте.[/dim]"))
+            console.print(f"  [dim]... and {len(flagged) - 15} more files (see CSV report)[/dim]")
 
 if __name__ == "__main__":
     main()

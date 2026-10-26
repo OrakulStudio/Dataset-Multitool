@@ -1,7 +1,15 @@
-#!/usr/bin/env python3
-"""
-Скрипт автоматической очистки кэпшенов с подробным логированием каждого файла из отчёта.
-"""
+# ==============================================================================
+#  ORAKUL CORE — AI Dataset & Model MultiTool
+#  Module: Auto Clean Dataset
+# ------------------------------------------------------------------------------
+#  Author:      Orakul (Orakul Studio)
+#  GitHub:      https://github.com/OrakulStudio
+#  Civitai:     https://civitai.com/user/ORAKUL_STUDIO
+#  HuggingFace: https://huggingface.co/OrakulStorm
+# ------------------------------------------------------------------------------
+#  Description: Automatic caption cleaner based on QC Scanner report.
+#  Copyright (c) 2026 Orakul Studio. All rights reserved.
+# ==============================================================================
 
 import csv
 import json
@@ -10,21 +18,21 @@ import sys
 from pathlib import Path
 from rich.console import Console
 from rich.panel import Panel
+from rich import box
 
-# --- ФУНКЦИЯ ПЕРЕВОДА ИЗ ГЛАВНОГО ФАЙЛА ---
 def t(text: str) -> str:
-    """Чистый переводчик: читает config.json, открывает {lang}.json и возвращает текст"""
+    """Translation helper. Currently returns English. Ready for future i18n."""
     config_file = Path("config.json")
-    lang = "ru"
+    lang = "en"
     
     if config_file.exists():
         try:
             with open(config_file, "r", encoding="utf-8") as f:
-                lang = json.load(f).get("language", "ru")
+                lang = json.load(f).get("language", "en")
         except Exception:
             pass
             
-    if lang == "ru" or not text:
+    if lang == "en" or not text:
         return text
         
     lang_file = Path(f"{lang}.json")
@@ -49,7 +57,6 @@ def t(text: str) -> str:
         pass
         
     return text
-# -----------------------------------------
 
 console = Console()
 
@@ -65,7 +72,7 @@ def clean_duplicated_loop(text: str) -> str:
     return truncated
 
 def clean_bare_leaks(text: str, reasons: str) -> str:
-    match = re.search(r'(?:УТЕЧКА ЗАГОЛОВКА БЕЗ ДВОЕТОЧИЯ|HEADER LEAK WITHOUT COLON):\s*([^|]+)', reasons)
+    match = re.search(r'(?:HEADER LEAK WITHOUT COLON|УТЕЧКА ЗАГОЛОВКА БЕЗ ДВОЕТОЧИЯ):\s*([^|]+)', reasons)
     if not match:
         return text
     phrases_str = match.group(1).strip()
@@ -121,11 +128,19 @@ def main():
         
         csv_files = list(target_folder.glob("*.csv"))
         if not csv_files:
-            console.print(t("[bold red][-] CSV-отчёт не найден в папке: ") + str(target_folder) + t("[/bold red]"))
+            console.print(Panel(
+                f"[bold white]\\[ERROR][/bold white] [dim]CSV report not found in folder: {target_folder}[/dim]",
+                border_style="grey50",
+                box=box.ROUNDED
+            ))
             return
             
         csv_path = csv_files[0]
-        console.print(t("[bold cyan][*] Найден отчёт:[/bold cyan] ") + csv_path.name)
+        console.print(Panel(
+            f"[bold white]\\[SYSTEM][/bold white] [dim]Found report: {csv_path.name}[/dim]",
+            border_style="grey50",
+            box=box.ROUNDED
+        ))
         
         fixed_count = 0
         actions_log = []
@@ -135,69 +150,93 @@ def main():
             rows = list(reader)
             
         if not rows:
-            console.print(t("[bold yellow][i] CSV-отчёт пуст.[/bold yellow]"))
+            console.print(Panel(
+                "[dim]CSV report is empty.[/dim]",
+                border_style="grey50",
+                box=box.ROUNDED
+            ))
             return
 
         for row in rows:
-            # Читаем ключи с учетом возможного перевода CSV заголовков
-            filename = row.get(t("Имя_файла")) or row.get("Имя_файла") or row.get("File_name")
-            reasons = row.get(t("Причины_замечаний")) or row.get("Причины_замечаний") or row.get("Reasons_for_remarks") or ""
+            # Support both old Russian and new English CSV headers
+            filename = (
+                row.get("Filename") or 
+                row.get("Имя_файла") or 
+                row.get("File_name") or 
+                row.get(t("Имя_файла"))
+            )
+            reasons = (
+                row.get("Issues") or 
+                row.get("Причины_замечаний") or 
+                row.get("Reasons_for_remarks") or 
+                row.get(t("Причины_замечаний")) or 
+                ""
+            )
             
             if not filename:
                 continue
                 
             file_path = target_folder / filename
             if not file_path.exists():
-                actions_log.append(t("[bold red]• ") + filename + t(" ➔ Файл не найден на диске[/bold red]"))
+                actions_log.append(f"[dim]• {filename} → File not found on disk[/dim]")
                 continue
                 
             original_text = file_path.read_text(encoding="utf-8", errors="ignore")
             cleaned_text = original_text
             applied_fixes = []
             
-            if "ЗАЦИКЛИВАНИЕ" in reasons or "TEXT LOOPING" in reasons:
+            if "TEXT LOOPING" in reasons or "ЗАЦИКЛИВАНИЕ" in reasons:
                 cleaned_text = clean_duplicated_loop(cleaned_text)
-                applied_fixes.append(t("Умная обрезка цикла"))
-            if "УТЕЧКА" in reasons or "HEADER LEAK" in reasons:
+                applied_fixes.append("Smart loop trim")
+            if "HEADER LEAK" in reasons or "УТЕЧКА" in reasons:
                 cleaned_text = clean_bare_leaks(cleaned_text, reasons)
-                applied_fixes.append(t("Удалены утечки заголовков"))
-            if "СПАМ" in reasons or "SPAM" in reasons:
+                applied_fixes.append("Removed header leaks")
+            if "WORD SPAM" in reasons or "СПАМ" in reasons:
                 cleaned_text = clean_word_spam(cleaned_text, reasons)
-                applied_fixes.append(t("Убран спам слов"))
+                applied_fixes.append("Removed word spam")
             
-            if "АНОМАЛЬНАЯ ДЛИНА" in reasons or "ANOMALOUS LENGTH" in reasons:
-                if t("длинный") in reasons.lower() or "long" in reasons.lower():
+            if "ANOMALOUS LENGTH" in reasons or "АНОМАЛЬНАЯ ДЛИНА" in reasons:
+                if "long" in reasons.lower() or "длинный" in reasons.lower():
                     cleaned_text = clean_length_outliers(cleaned_text, max_words=140)
-                    applied_fixes.append(t("Обрезан избыточный объем"))
-                elif t("короткий") in reasons.lower() or "short" in reasons.lower():
-                    applied_fixes.append(t("[yellow]Пропущен: слишком короткий (требует ручного долива)[/yellow]"))
+                    applied_fixes.append("Trimmed excessive length")
+                elif "short" in reasons.lower() or "короткий" in reasons.lower():
+                    applied_fixes.append("Skipped: too short (needs manual fix)")
                 else:
-                    applied_fixes.append(t("Аномалия длины"))
+                    applied_fixes.append("Length anomaly")
                 
             cleaned_text = normalize_formatting(cleaned_text)
             
             if cleaned_text != original_text:
                 file_path.write_text(cleaned_text, encoding="utf-8")
                 fixed_count += 1
-                actions_log.append(t("[bold white]• ") + filename + t("[/bold white] ➔ [green]") + " | ".join(applied_fixes) + t("[/green]"))
+                actions_log.append(f"[white]• {filename}[/white] → [dim]{' | '.join(applied_fixes)}[/dim]")
             else:
                 if applied_fixes:
-                    actions_log.append(t("[bold white]• ") + filename + t("[/bold white] ➔ [yellow]") + " | ".join(applied_fixes) + t("[/yellow]"))
+                    actions_log.append(f"[white]• {filename}[/white] → [dim]{' | '.join(applied_fixes)}[/dim]")
                 else:
-                    actions_log.append(t("[bold white]• ") + filename + t("[/bold white] ➔ [dim]Без изменений[/dim]"))
+                    actions_log.append(f"[dim]• {filename} → No changes[/dim]")
 
         if actions_log:
             console.print(Panel(
                 "\n".join(actions_log),
-                title=t("[bold green]✨ ИТОГОВЫЙ ОТЧЁТ ОЧИСТКИ (Изменено файлов: ") + str(fixed_count) + t(")[/bold green]"),
-                border_style="green",
+                title=f"[bold white] CLEANING REPORT (Files changed: {fixed_count}) [/bold white]",
+                border_style="grey50",
+                box=box.ROUNDED,
                 expand=False
             ))
         else:
-            console.print(t("\n[bold yellow][i] Ни один файл не потребовал изменений.[/bold yellow]"))
+            console.print(Panel(
+                "[dim]No files required changes.[/dim]",
+                border_style="grey50",
+                box=box.ROUNDED
+            ))
 
     except Exception as e:
-        console.print(t("[bold red][-] Ошибка в скрипте очистки: ") + str(e) + t("[/bold red]"))
+        console.print(Panel(
+            f"[bold white]\\[ERROR][/bold white] [dim]Cleaning script error: {e}[/dim]",
+            border_style="grey50",
+            box=box.ROUNDED
+        ))
 
 if __name__ == "__main__":
     main()

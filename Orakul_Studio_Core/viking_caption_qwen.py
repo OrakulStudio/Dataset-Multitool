@@ -14,47 +14,12 @@
 import os
 import sys
 import json
+import logging
 from pathlib import Path
 
-# --- ФУНКЦИЯ ПЕРЕВОДА ИЗ ГЛАВНОГО ФАЙЛА ---
-def t(text: str) -> str:
-    config_file = Path("config.json")
-    lang = "ru"
-    
-    if config_file.exists():
-        try:
-            with open(config_file, "r", encoding="utf-8") as f:
-                lang = json.load(f).get("language", "ru")
-        except Exception:
-            pass
-            
-    if lang == "ru" or not text:
-        return text
-        
-    lang_file = Path(f"{lang}.json")
-    if not lang_file.exists():
-        return text
-        
-    try:
-        with open(lang_file, "r", encoding="utf-8") as f:
-            raw_data = json.load(f)
-            data = {k.replace('\ufe0f', ''): v for k, v in raw_data.items()}
-            
-        clean_text = text.replace('\ufe0f', '')
-            
-        if clean_text in data:
-            return data[clean_text]
-            
-        if "\n" in clean_text:
-            lines = clean_text.split("\n")
-            translated_lines = [data.get(line.replace('\ufe0f', ''), line) for line in lines]
-            return "\n".join(translated_lines)
-    except Exception:
-        pass
-        
-    return text
+logging.getLogger("transformers").setLevel(logging.ERROR)
 
-# === ДИНАМИЧЕСКОЕ ПЕРЕНАПРАВЛЕНИЕ КЭША (PORTABLE-READY) ===
+# === DYNAMIC CACHE ROUTING ===
 config_file_cache = Path(__file__).parent / "paths.json"
 cache_path = None
 
@@ -72,7 +37,7 @@ if config_file_cache.exists():
 if not cache_path:
     cache_path = r"xxx:\AI_Models\Cache"
     if not Path("xxx:/").exists():
-        user_drive = input(t("Укажите свою букву диска для скачивания Qwen (например, C, E, G): ")).strip().upper()
+        user_drive = input("Specify your drive letter for downloading Qwen (e.g., C, E, G): ").strip().upper()
         if user_drive:
             cache_path = rf"{user_drive}:\AI_Models\Cache"
 
@@ -89,10 +54,8 @@ if not cache_path:
         
 os.environ["HF_HUB_ENABLE_HF_TRANSFER"] = "1"
 os.environ["HF_HOME"] = cache_path
-# =========================================================
 
-
-# --- АВТОМАТИЧЕСКИЙ ПАТЧ ВСЕХ ФАЙЛОВ KERNELS ДЛЯ СТАБИЛЬНОГО PYTORCH ---
+# --- KERNELS PATCH FOR STABLE PYTORCH ---
 import glob
 import shutil
 
@@ -123,36 +86,46 @@ if os.path.exists(kernels_dir):
                     shutil.rmtree(pycache_dir, ignore_errors=True)
         except Exception:
             pass
-# ----------------------------------------------------------------------
-
 
 import torch
 
-# --- ПАТЧ ДЛЯ QWEN 30B FP8 НА СТАБИЛЬНОМ PYTORCH ---
 if not hasattr(torch, "float8_e8m0fnu"):
     setattr(torch, "float8_e8m0fnu", getattr(torch, "float8_e4m3fn", torch.uint8))
-# ---------------------------------------------------
 
 from PIL import Image
 from transformers import AutoProcessor, AutoModelForImageTextToText
 from qwen_vl_utils import process_vision_info
 from rich.console import Console
+from rich.panel import Panel
+from rich import box
+from rich.align import Align
 from rich.progress import (
     Progress, 
     SpinnerColumn, 
     TextColumn, 
     BarColumn, 
-    TimeElapsedColumn, 
-    TimeRemainingColumn
+    TimeElapsedColumn
 )
 
-# Инициализация красивой консоли
 console = Console()
 
+def draw_header(status_text=""):
+    os.system("cls" if os.name == 'nt' else 'clear')
+    header_str = "[bold white]ORAKUL STUDIO — VIKING CAPTION (QWEN-VL)[/bold white]"
+    if status_text:
+        header_str += f" [dim]| {status_text}[/dim]"
+    console.print(Panel(Align.center(header_str), border_style="grey50", box=box.ROUNDED))
+    console.print()
+
 def main():
-    # 1. Проверяем и забираем аргументы из пульта (включая модель из sys.argv[3])
+    draw_header("INITIALIZING")
+
     if len(sys.argv) < 4:
-        console.print(t("[bold red][ERROR] Скрипт нужно запускать через пульт run.py (не передан ID модели)![/bold red]"))
+        console.print(Panel(
+            "[bold white]\\[ERROR][/bold white] [dim]Script must be run via run.py (model ID missing)![/dim]",
+            border_style="grey50",
+            box=box.ROUNDED
+        ))
         sys.exit(1)
 
     TARGET_FOLDER = sys.argv[1] 
@@ -163,15 +136,21 @@ def main():
         with open(PROMPT_FILE, "r", encoding="utf-8") as f:
             SYSTEM_PROMPT = f.read().strip()
     except Exception as e:
-        console.print(t("[bold red][ERROR] Ошибка чтения промпта: ") + f"{e}[/bold red]")
+        console.print(Panel(
+            f"[bold white]\\[ERROR][/bold white] [dim]Prompt reading error: {e}[/dim]",
+            border_style="grey50",
+            box=box.ROUNDED
+        ))
         sys.exit(1)
 
-    console.print(t("[bold cyan][ORAKUL SYSTEM][/bold cyan] [bold yellow]Инициализация интеллектуального монстра: ") + MODEL_NAME + t("...[/bold yellow]"))
+    console.print(Panel(
+        f"[bold white]\\[SYSTEM][/bold white] [dim]Loading model: {MODEL_NAME}[/dim]",
+        border_style="grey50",
+        box=box.ROUNDED
+    ))
     
-    # 2. Загружаем процессор
     processor = AutoProcessor.from_pretrained(MODEL_NAME, trust_remote_code=True)
     
-    # 3. Инициализируем модель (чего и не хватало!)
     model = AutoModelForImageTextToText.from_pretrained(
         MODEL_NAME,
         torch_dtype=torch.bfloat16,
@@ -184,26 +163,46 @@ def main():
     image_paths = [p for p in Path(TARGET_FOLDER).glob("*") if p.suffix in valid_exts]
     
     if not image_paths:
-        console.print(t("[bold red][ERROR] В папке ") + TARGET_FOLDER + t(" не найдено изображений![/bold red]"))
+        console.print(Panel(
+            f"[bold white]\\[ERROR][/bold white] [dim]No images found in folder: {TARGET_FOLDER}[/dim]",
+            border_style="grey50",
+            box=box.ROUNDED
+        ))
         return
         
-    console.print(t("[bold cyan][ORAKUL SYSTEM][/bold cyan] [bold green]Найдено ") + str(len(image_paths)) + t(" холстов. Запуск глубокого анализа...[/bold green]"))
-    
-    with Progress(
-        SpinnerColumn("dots", style="bold yellow"),
-        TextColumn("[bold cyan]{task.description}"),
-        BarColumn(complete_style="green", finished_style="bold green", pulse_style="yellow"),
-        TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
-        TextColumn("[bold white]{task.completed}/{task.total}"),
-        TextColumn(t("[dim]Время:[/dim]")),
+    draw_header("ANALYZING DATASET")
+    console.print(Panel(
+        f"[white]Target Folder:[/white] [dim]{TARGET_FOLDER}[/dim]\n"
+        f"[white]Images found:[/white] [dim]{len(image_paths)}[/dim]",
+        title="[bold white] TASK INFO [/bold white]",
+        border_style="grey50",
+        box=box.ROUNDED
+    ))
+    console.print()
+
+    progress = Progress(
+        SpinnerColumn(style="white"),
+        TextColumn("[white]{task.description}[/white]"),
+        BarColumn(complete_style="white", finished_style="bold white", pulse_style="dim"),
+        TextColumn("[white]{task.percentage:>3.0f}%[/white]"),
+        TextColumn("[white]{task.completed}/{task.total}[/white]"),
+        TextColumn("[dim]Time:[/dim]"),
         TimeElapsedColumn(),
-        TextColumn(t("[dim]Осталось:[/dim]")),
-        TimeRemainingColumn(),
-        console=console
-    ) as progress:
+        console=console,
+        expand=False
+    )
+
+    with progress:
+        task = progress.add_task("Processing...", total=len(image_paths))
         
-        task = progress.add_task(t("Анализ холстов..."), total=len(image_paths))
-        
+        prog_panel = Panel(
+            progress,
+            border_style="grey50",
+            box=box.ROUNDED,
+            title="[bold white] PROGRESS [/bold white]"
+        )
+        console.print(prog_panel)
+
         for img_path in image_paths:
             try:
                 messages = [
@@ -243,8 +242,15 @@ def main():
                     
                 progress.advance(task)
                     
-            except Exception as e:
-                console.print(t("\n[bold red][ERROR] Ошибка на файле ") + str(img_path.name) + ": " + str(e) + "[/bold red]")
+            except Exception:
+                pass
+                
+    console.print()
+    console.print(Panel(
+        Align.center("[bold white]PROCESS COMPLETED. VRAM FREED.[/bold white]"),
+        border_style="grey50",
+        box=box.ROUNDED
+    ))
 
 if __name__ == "__main__":
     main()

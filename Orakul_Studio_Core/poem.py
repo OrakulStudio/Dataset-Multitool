@@ -1,34 +1,34 @@
 # ==============================================================================
 #  ORAKUL CORE — AI Dataset & Model MultiTool
-#  Module: Model Poem
+#  Module: Qwen Poem (Lore Generator)
 # ------------------------------------------------------------------------------
 #  Author:      Orakul (Orakul Studio)
 #  GitHub:      https://github.com/OrakulStudio
 #  Civitai:     https://civitai.com/user/ORAKUL_STUDIO
 #  HuggingFace: https://huggingface.co/OrakulStorm
 # ------------------------------------------------------------------------------
-#  Description: Fast safetensors header reading, rank & parameter counter.
+#  Description: Generates artistic lore documents from image sets using Qwen-VL.
 #  Copyright (c) 2026 Orakul Studio. All rights reserved.
 # ==============================================================================
+
 import os
 import sys
 import json
 from pathlib import Path
 
-# --- ФУНКЦИЯ ПЕРЕВОДА ИЗ ГЛАВНОГО ФАЙЛА ---
 def t(text: str) -> str:
-    """Чистый переводчик: читает config.json, открывает {lang}.json и возвращает текст"""
+    """Translation helper. Currently returns English. Ready for future i18n."""
     config_file = Path("config.json")
-    lang = "ru"
+    lang = "en"
     
     if config_file.exists():
         try:
             with open(config_file, "r", encoding="utf-8") as f:
-                lang = json.load(f).get("language", "ru")
+                lang = json.load(f).get("language", "en")
         except Exception:
             pass
             
-    if lang == "ru" or not text:
+    if lang == "en" or not text:
         return text
         
     lang_file = Path(f"{lang}.json")
@@ -53,10 +53,8 @@ def t(text: str) -> str:
         pass
         
     return text
-# -----------------------------------------
 
-# ХАРДКОРНОЕ ПЕРЕНАПРАВЛЕНИЕ КЭША
-# === ДИНАМИЧЕСКОЕ ПЕРЕНАПРАВЛЕНИЕ КЭША (UNIFIED PATHS) ===
+# === DYNAMIC CACHE ROUTING ===
 config_file_cache = Path(__file__).parent / "paths.json"
 cache_path = None
 
@@ -74,9 +72,9 @@ if config_file_cache.exists():
 if not cache_path:
     cache_path = r"XXX:\AI_Models\Cache"
     if not Path("XXX:/").exists():
-        print("\n[!] Диск по умолчанию не обнаружен.")
+        print("\n[!] Default drive not detected.")
         user_drive = (
-            input("Укажите свою букву диска для скачивания Qwen (например, C, D, E): ")
+            input("Specify your drive letter for downloading Qwen (e.g., C, D, E): ")
             .strip()
             .upper()
         )
@@ -98,10 +96,10 @@ if not cache_path:
 
 os.environ["HF_HUB_ENABLE_HF_TRANSFER"] = "1"
 os.environ["HF_HOME"] = cache_path
-# =========================================================
 
-# --- АВТОМАТИЧЕСКИЙ ПАТЧ ВСЕХ ФАЙЛОВ KERNELS ДЛЯ СТАБИЛЬНОГО PYTORCH ---
+# --- KERNELS PATCH FOR STABLE PYTORCH ---
 import glob
+import shutil
 
 kernels_dir = os.path.join(cache_path, "hub", "kernels--kernels-community--finegrained-fp8")
 if os.path.exists(kernels_dir):
@@ -125,21 +123,16 @@ if os.path.exists(kernels_dir):
                 with open(file_path, "w", encoding="utf-8") as f:
                     f.write(content)
                     
-                # Сносим pycache в этой папке
                 pycache_dir = os.path.join(os.path.dirname(file_path), "__pycache__")
                 if os.path.exists(pycache_dir):
-                    import shutil
                     shutil.rmtree(pycache_dir, ignore_errors=True)
         except Exception:
             pass
-# ----------------------------------------------------------------------
 
 import torch
 
-# --- ПАТЧ ДЛЯ QWEN 30B FP8 НА СТАБИЛЬНОМ PYTORCH ---
 if not hasattr(torch, "float8_e8m0fnu"):
     setattr(torch, "float8_e8m0fnu", getattr(torch, "float8_e4m3fn", torch.uint8))
-# ---------------------------------------------------
 
 from PIL import Image
 from transformers import AutoProcessor, AutoModelForImageTextToText
@@ -147,14 +140,17 @@ from qwen_vl_utils import process_vision_info
 from rich.console import Console
 from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
+from rich import box
 
-# Инициализация красивой консоли
 console = Console()
 
 def main():
-    # 1. Принимаем аргументы и модель из пульта run.py
     if len(sys.argv) < 4:
-        console.print(t("[bold red][ERROR] Скрипт нужно запускать через пульт run.py (не передан ID модели)![/bold red]"))
+        console.print(Panel(
+            "[bold white]\\[ERROR][/bold white] [dim]Script must be run via run.py (model ID missing)![/dim]",
+            border_style="grey50",
+            box=box.ROUNDED
+        ))
         sys.exit(1)
 
     TARGET_FOLDER = sys.argv[1] 
@@ -165,12 +161,20 @@ def main():
         with open(PROMPT_FILE, "r", encoding="utf-8") as f:
             SYSTEM_PROMPT = f.read().strip()
     except Exception as e:
-        console.print(t("[bold red][ERROR] Ошибка чтения промпта: ") + f"{e}[/bold red]")
+        console.print(Panel(
+            f"[bold white]\\[ERROR][/bold white] [dim]Prompt reading error: {e}[/dim]",
+            border_style="grey50",
+            box=box.ROUNDED
+        ))
         sys.exit(1)
 
-    console.print(t("[bold cyan][ORAKUL SYSTEM][/bold cyan] [bold yellow]Запуск генератора лора на базе: ") + MODEL_NAME + t("...[/bold yellow]"))
+    console.print(Panel(
+        f"[bold white]\\[SYSTEM][/bold white] [dim]Starting lore generator on: {MODEL_NAME}[/dim]",
+        border_style="grey50",
+        box=box.ROUNDED
+    ))
     
-    with console.status(t("[bold yellow]Загрузка весов в видеопамять CUDA...[/bold yellow]"), spinner="dots"):
+    with console.status("[dim]Loading weights into CUDA VRAM...[/dim]", spinner="dots"):
         processor = AutoProcessor.from_pretrained(MODEL_NAME, trust_remote_code=True)
         
         model = AutoModelForImageTextToText.from_pretrained(
@@ -185,12 +189,16 @@ def main():
     image_paths = sorted([p for p in Path(TARGET_FOLDER).glob("*") if p.suffix in valid_exts])
     
     if not image_paths:
-        console.print(t("[bold red][ERROR] В папке ") + TARGET_FOLDER + t(" не найдено изображений![/bold red]"))
+        console.print(Panel(
+            f"[bold white]\\[ERROR][/bold white] [dim]No images found in folder: {TARGET_FOLDER}[/dim]",
+            border_style="grey50",
+            box=box.ROUNDED
+        ))
         return
         
     with Progress(
-        SpinnerColumn("dots", style="bold yellow"),
-        TextColumn(t("[bold cyan]Загрузка холстов в единый контекст...[/bold cyan]")),
+        SpinnerColumn(style="white"),
+        TextColumn("[dim]Loading images into unified context...[/dim]"),
         console=console
     ) as progress:
         progress.add_task("loading", total=None)
@@ -219,7 +227,7 @@ def main():
         return_tensors="pt"
     ).to("cuda")
     
-    with console.status(t("[bold magenta]Нейросеть пишет лор-документ (генерация токенов)...[/bold magenta]"), spinner="dots"):
+    with console.status("[dim]Neural network is writing the lore document...[/dim]", spinner="dots"):
         with torch.no_grad():
             generated_ids = model.generate(**inputs, max_new_tokens=2048, do_sample=False)
     
@@ -234,10 +242,21 @@ def main():
     with open(output_file, "w", encoding="utf-8") as f:
         f.write(caption.strip())
         
-    console.print(t("\n[bold green][SUCCESS][/bold green] Лор-документ успешно создан и сохранен в: [bold white]") + str(output_file) + t("[/bold white]\n"))
+    console.print()
+    console.print(Panel(
+        f"[bold white]\\[SUCCESS][/bold white] [dim]Lore document successfully created and saved to:[/dim]\n[white]{output_file}[/white]",
+        border_style="grey50",
+        box=box.ROUNDED
+    ))
     
     preview_text = caption[:1000] + "..." if len(caption) > 1000 else caption
-    console.print(Panel(preview_text, title=t("[bold cyan]ФРАГМЕНТ СГЕНЕРИРОВАННОГО ЛОР-ДОКУМЕНТА[/bold cyan]"), border_style="cyan"))
+    console.print()
+    console.print(Panel(
+        preview_text,
+        title="[bold white] GENERATED LORE PREVIEW [/bold white]",
+        border_style="grey50",
+        box=box.ROUNDED
+    ))
 
 if __name__ == "__main__":
     main()

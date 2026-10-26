@@ -1,6 +1,6 @@
 # ==============================================================================
 #  ORAKUL CORE — AI Dataset & Model MultiTool
-#  Module: Model Inspector & Metadata Analyzer
+#  Module: Model Inspector
 # ------------------------------------------------------------------------------
 #  Author:      Orakul (Orakul Studio)
 #  GitHub:      https://github.com/OrakulStudio
@@ -10,6 +10,7 @@
 #  Description: Fast safetensors header reading, rank & parameter counter.
 #  Copyright (c) 2026 Orakul Studio. All rights reserved.
 # ==============================================================================
+
 import os
 import math
 import json
@@ -19,21 +20,21 @@ from safetensors import safe_open
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
+from rich import box
 
-# --- ФУНКЦИЯ ПЕРЕВОДА ИЗ ГЛАВНОГО ФАЙЛА ---
 def t(text: str) -> str:
-    """Чистый переводчик: читает config.json, открывает {lang}.json и возвращает текст"""
+    """Translation helper. Currently returns English. Ready for future i18n."""
     config_file = Path("config.json")
-    lang = "ru"
+    lang = "en"
     
     if config_file.exists():
         try:
             with open(config_file, "r", encoding="utf-8") as f:
-                lang = json.load(f).get("language", "ru")
+                lang = json.load(f).get("language", "en")
         except Exception:
             pass
             
-    if lang == "ru" or not text:
+    if lang == "en" or not text:
         return text
         
     lang_file = Path(f"{lang}.json")
@@ -58,23 +59,28 @@ def t(text: str) -> str:
         pass
         
     return text
-# -----------------------------------------
 
 console = Console()
 
 def clean_path(path_str: str) -> str:
-    """Очистка пути при Drag-and-Drop из проводника"""
     return path_str.strip(' "\'')
 
 def inspect_model():
-    console.print(Panel(t("[bold yellow]🔍 ORAKUL MODEL INSPECTOR • PARAMS & METADATA 🔍[/bold yellow]"), expand=False))
+    console.print(Panel(
+        "[bold white]ORAKUL MODEL INSPECTOR[/bold white] [dim]• Params & Metadata[/dim]",
+        border_style="grey50",
+        box=box.ROUNDED
+    ))
     
-    # 1. Запрос пути к файлу
-    raw_path = console.input("\n" + t("[bold cyan]Перетащи модель (.safetensors) сюда: [/bold cyan]"))
+    raw_path = console.input("\n[bold white]> Drag model (.safetensors) here: [/bold white]")
     file_path = clean_path(raw_path)
 
     if not os.path.exists(file_path) or not os.path.isfile(file_path):
-        console.print(t("[bold red]❌ Ошибка: Файл не найден![/bold red]"))
+        console.print(Panel(
+            "[bold white]\\[ERROR][/bold white] [dim]File not found![/dim]",
+            border_style="grey50",
+            box=box.ROUNDED
+        ))
         return
 
     start_time = time.time()
@@ -82,30 +88,30 @@ def inspect_model():
     total_tensors = 0
     metadata = {}
 
-    # 2. Мгновенное чтение заголовков через safe_open (без загрузки весов в RAM)
     try:
         with safe_open(file_path, framework="pt", device="cpu") as f:
-            # Читаем метаданные заголовка
             metadata = f.metadata() or {}
             
-            # Считаем точное количество параметров
             for key in f.keys():
                 shape = f.get_slice(key).get_shape()
                 total_params += math.prod(shape)
                 total_tensors += 1
     except Exception as e:
-        console.print(t("[bold red]❌ Ошибка чтения Safetensors:[/bold red]") + f" {e}")
+        console.print(Panel(
+            f"[bold white]\\[ERROR][/bold white] [dim]Safetensors read error: {e}[/dim]",
+            border_style="grey50",
+            box=box.ROUNDED
+        ))
         return
 
     elapsed = time.time() - start_time
     size_gb = os.path.getsize(file_path) / (1024 ** 3)
     billions = total_params / 1_000_000_000
 
-    # 3. Поиск триггерных слов и метаданных обучения (Kohya / ModelSpec / Civitai)
+    # Trigger words extraction
     trigger_words = []
-    base_model = metadata.get("ss_sd_model_name", metadata.get("ss_base_model_version", t("Не указано")))
+    base_model = metadata.get("ss_sd_model_name", metadata.get("ss_base_model_version", "Not specified"))
     
-    # Вариант A: Поле ss_trained_words (Kohya)
     if "ss_trained_words" in metadata:
         try:
             words = json.loads(metadata["ss_trained_words"])
@@ -116,11 +122,9 @@ def inspect_model():
         except Exception:
             trigger_words.append(str(metadata["ss_trained_words"]))
 
-    # Вариант B: Поле modelspec.trigger_phrase
     if "modelspec.trigger_phrase" in metadata:
         trigger_words.append(metadata["modelspec.trigger_phrase"])
 
-    # Вариант C: Анализ частоты тегов (ss_tag_frequency)
     if "ss_tag_frequency" in metadata and not trigger_words:
         try:
             tag_freq = json.loads(metadata["ss_tag_frequency"])
@@ -133,21 +137,26 @@ def inspect_model():
         except Exception:
             pass
 
-    triggers_str = ", ".join(set(trigger_words)) if trigger_words else t("[dim yellow]Триггерные слова не найдены в метаданных[/dim yellow]")
+    triggers_str = ", ".join(set(trigger_words)) if trigger_words else "[dim]No trigger words found in metadata[/dim]"
 
-    # 4. Вывод красивой Rich-таблицы
-    table = Table(title=t("[bold green]📊 ИНСПЕКЦИЯ МОДЕЛИ:[/bold green]") + f" [bold green]{os.path.basename(file_path)}[/bold green]", show_header=True, header_style="bold cyan")
-    table.add_column(t("Параметр"), style="white")
-    table.add_column(t("Значение"), style="bold yellow")
+    table = Table(
+        title=f"[bold white]MODEL INSPECTION: {os.path.basename(file_path)}[/bold white]",
+        show_header=True,
+        header_style="bold white",
+        border_style="grey50",
+        box=box.ROUNDED
+    )
+    table.add_column("Parameter", style="dim")
+    table.add_column("Value", style="white")
 
-    table.add_row(t("Файл"), f"[bold white]{os.path.basename(file_path)}[/bold white]")
-    table.add_row(t("Размер на диске"), f"[bold green]{size_gb:.2f} GB[/bold green]")
-    table.add_row(t("Всего слоёв / тензоров"), f"{total_tensors:,}")
-    table.add_row(t("Точное число параметров"), f"{total_params:,}")
-    table.add_row(t("Параметров в миллиардах"), f"[bold green]{billions:.6f} B[/bold green]")
-    table.add_row(t("Базовая модель"), f"{base_model}")
-    table.add_row(t("Триггерные слова"), f"[bold cyan]{triggers_str}[/bold cyan]")
-    table.add_row(t("Время сканирования"), f"{elapsed:.4f} " + t("сек"))
+    table.add_row("File", f"[white]{os.path.basename(file_path)}[/white]")
+    table.add_row("Disk size", f"{size_gb:.2f} GB")
+    table.add_row("Total layers / tensors", f"{total_tensors:,}")
+    table.add_row("Exact parameter count", f"{total_params:,}")
+    table.add_row("Parameters (billions)", f"{billions:.6f} B")
+    table.add_row("Base model", f"{base_model}")
+    table.add_row("Trigger words", f"{triggers_str}")
+    table.add_row("Scan time", f"{elapsed:.4f} sec")
 
     console.print("\n")
     console.print(table)

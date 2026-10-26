@@ -1,15 +1,16 @@
 # ==============================================================================
 #  ORAKUL CORE — AI Dataset & Model MultiTool
-#  Module: LoRA SVD Distillation & Compression (CUDA Accelerated)
+#  Module: Weight Merger & SVD Lab
 # ------------------------------------------------------------------------------
 #  Author:      Orakul (Orakul Studio)
 #  GitHub:      https://github.com/OrakulStudio
 #  Civitai:     https://civitai.com/user/ORAKUL_STUDIO
 #  HuggingFace: https://huggingface.co/OrakulStorm
 # ------------------------------------------------------------------------------
-#  Description: Rank reduction and matrix compression for LoRA weights.
+#  Description: Rank reduction, matrix compression and LoRA merging tools.
 #  Copyright (c) 2026 Orakul Studio. All rights reserved.
 # ==============================================================================
+
 import json
 import os
 import time
@@ -29,21 +30,21 @@ from rich.progress import (
     TimeElapsedColumn,
     TimeRemainingColumn,
 )
+from rich import box
 
-# --- ФУНКЦИЯ ПЕРЕВОДА ИЗ ГЛАВНОГО ФАЙЛА ---
 def t(text: str) -> str:
-    """Чистый переводчик: читает config.json, открывает {lang}.json и возвращает текст"""
+    """Translation helper. Currently returns English. Ready for future i18n."""
     config_file = Path("config.json")
-    lang = "ru"
+    lang = "en"
     
     if config_file.exists():
         try:
             with open(config_file, "r", encoding="utf-8") as f:
-                lang = json.load(f).get("language", "ru")
+                lang = json.load(f).get("language", "en")
         except Exception:
             pass
             
-    if lang == "ru" or not text:
+    if lang == "en" or not text:
         return text
         
     lang_file = Path(f"{lang}.json")
@@ -68,116 +69,133 @@ def t(text: str) -> str:
         pass
         
     return text
-# -----------------------------------------
 
 console = Console()
 
-# =========================================================================
-# УТИЛИТЫ ОБРАБОТКИ ПУТЕЙ И ВВОДА
-# =========================================================================
 def clean_path(path_str: str) -> str:
-    """Очистка пути от кавычек и лишних пробелов при Drag-and-Drop"""
     return path_str.strip(' "\'')
 
 def get_float_input(prompt_text: str, default_val: float) -> float:
-    """Безопасный ввод вещественного числа"""
-    val_str = console.input(prompt_text + f" [bold yellow][{t('По умолчанию:')} {default_val}][/bold yellow]: ").strip()
+    val_str = console.input(f"{prompt_text} [dim](Default: {default_val})[/dim]: ").strip()
     if not val_str:
         return default_val
     try:
         return float(val_str.replace(',', '.'))
     except ValueError:
-        console.print(t("[yellow]⚠ Некорректный ввод. Использовано значение по умолчанию.[/yellow]"))
+        console.print("[dim]Invalid input. Using default value.[/dim]")
         return default_val
 
 def get_int_input(prompt_text: str, default_val: int) -> int:
-    """Безопасный ввод целого числа"""
-    val_str = console.input(prompt_text + f" [bold yellow][{t('По умолчанию:')} {default_val}][/bold yellow]: ").strip()
+    val_str = console.input(f"{prompt_text} [dim](Default: {default_val})[/dim]: ").strip()
     if not val_str:
         return default_val
     try:
         return int(val_str)
     except ValueError:
-        console.print(t("[yellow]⚠ Некорректный ввод. Использовано значение по умолчанию.[/yellow]"))
+        console.print("[dim]Invalid input. Using default value.[/dim]")
         return default_val
 
 def resolve_output_path(prompt_text: str, default_filename: str = "merged_output.safetensors") -> str:
-    """Умный резолвер: понимает и перетащенные папки, и имена файлов, и полные пути"""
     user_input = console.input(prompt_text)
     cleaned = clean_path(user_input)
 
     if not cleaned:
         cleaned = default_filename
 
-    # Сценарий 1: Перетащили папку из Проводника
     if os.path.isdir(cleaned):
-        filename = console.input(t("[bold cyan]Введи имя файла для этой папки[/bold cyan]") + f" [bold yellow][{t('По умолчанию:')} {default_filename}][/bold yellow]: ").strip()
+        filename = console.input(f"[bold white]> Filename for this folder [dim](Default: {default_filename})[/dim]: [/bold white]").strip()
         if not filename:
             filename = default_filename
         if not filename.endswith(".safetensors"):
             filename += ".safetensors"
         return str(Path(cleaned) / filename)
 
-    # Сценарий 2: Написали просто имя файла (сохранит в корень Orakul_Studio_Core)
     elif not os.path.dirname(cleaned):
         filename = cleaned if cleaned else default_filename
         if not filename.endswith(".safetensors"):
             filename += ".safetensors"
         return str(Path(filename).resolve())
 
-    # Сценарий 3: Перетащили/ввели полный путь с именем файла
     else:
         if not cleaned.endswith(".safetensors"):
             cleaned += ".safetensors"
         return cleaned
 
+def _show_summary(title: str, processed: int, total: int, output_path: str, start_time: float):
+    elapsed = time.time() - start_time
+    size_mb = os.path.getsize(output_path) / (1024 ** 2) if os.path.exists(output_path) else 0
+
+    summary = Table(
+        title=f"[bold white]REPORT: {title}[/bold white]",
+        show_header=True,
+        header_style="bold white",
+        border_style="grey50",
+        box=box.ROUNDED
+    )
+    summary.add_column("Parameter", style="dim")
+    summary.add_column("Value", style="white")
+
+    summary.add_row("Layers processed", f"{processed} / {total}")
+    summary.add_row("Saved to", f"[white]{output_path}[/white]")
+    if size_mb >= 1024:
+        summary.add_row("File size", f"{size_mb / 1024:.2f} GB")
+    else:
+        summary.add_row("File size", f"{size_mb:.2f} MB")
+    summary.add_row("Time elapsed", f"{elapsed:.2f} sec")
+
+    console.print("\n")
+    console.print(summary)
 
 # =========================================================================
-# 1. FLUX.2: BASE MODEL + LORA (CUDA Инъекция)
+# 1. FLUX.2: BASE MODEL + LORA
 # =========================================================================
 def merge_flux_base_lora():
-    console.print(Panel(t("[bold yellow]⚡ FLUX.2 • BASE MODEL + LORA (CUDA ACCELERATED) ⚡[/bold yellow]"), expand=False))
+    console.print(Panel(
+        "[bold white]FLUX.2 • BASE MODEL + LORA[/bold white] [dim](CUDA Accelerated)[/dim]",
+        border_style="grey50",
+        box=box.ROUNDED
+    ))
 
-    base_path = clean_path(console.input("\n" + t("[bold cyan]1. Перетащи базовую модель (Base .safetensors): [/bold cyan]")))
-    lora_path = clean_path(console.input(t("[bold cyan]2. Перетащи LoRA Flux.2 (.safetensors): [/bold cyan]")))
+    base_path = clean_path(console.input("\n[bold white]> 1. Drag base model (.safetensors): [/bold white]"))
+    lora_path = clean_path(console.input("[bold white]> 2. Drag Flux.2 LoRA (.safetensors): [/bold white]"))
     
     if not os.path.exists(base_path) or not os.path.exists(lora_path):
-        console.print(t("[bold red]❌ Ошибка: Один из исходных файлов не найден![/bold red]"))
+        console.print(Panel("[bold white]\\[ERROR][/bold white] [dim]One of the source files not found![/dim]", border_style="grey50", box=box.ROUNDED))
         return
 
-    output_path = resolve_output_path("\n" + t("[bold cyan]3. Укажи имя, полный путь или перетащи папку сохранения: [/bold cyan]"), "Flux2_Base_LoRA_Merge.safetensors")
-    alpha = get_float_input(t("[bold cyan]4. Коэффициент силы LoRA (Alpha)[/bold cyan]"), 1.0)
+    output_path = resolve_output_path("\n[bold white]> 3. Output name / path / folder: [/bold white]", "Flux2_Base_LoRA_Merge.safetensors")
+    alpha = get_float_input("[bold white]> 4. LoRA strength (Alpha)[/bold white]", 1.0)
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
     if device == "cuda":
-        console.print(t("[bold green]🚀 Подключено GPU-ускорение:[/bold green]") + f" [bold yellow]{torch.cuda.get_device_name(0)}[/bold yellow]\n")
+        console.print(Panel(f"[white]GPU acceleration:[/white] [dim]{torch.cuda.get_device_name(0)}[/dim]", border_style="grey50", box=box.ROUNDED))
     else:
-        console.print(t("[bold yellow]⚠ CUDA не найдена, вычисления будут на CPU[/bold yellow]") + "\n")
+        console.print(Panel("[dim]CUDA not found, using CPU[/dim]", border_style="grey50", box=box.ROUNDED))
 
     start_time = time.time()
 
-    with console.status(t("[bold cyan]Загрузка базовой модели Flux.2 в RAM...[/bold cyan]"), spinner="dots"):
+    with console.status("[dim]Loading base model into RAM...[/dim]", spinner="dots"):
         base = load_file(base_path, device="cpu")
 
-    with console.status(t("[bold yellow]Загрузка LoRA Flux.2 в RAM...[/bold yellow]"), spinner="dots"):
+    with console.status("[dim]Loading LoRA into RAM...[/dim]", spinner="dots"):
         lora = load_file(lora_path, device="cpu")
 
     matching_keys = [k for k in lora.keys() if "lora_down" in k or "lora_A" in k]
-    console.print(t("[bold green]✓[/bold green] Модели загружены. Найдено LoRA-слоев: ") + f"[bold cyan]{len(matching_keys)}[/bold cyan]\n")
+    console.print(Panel(f"[white]Models loaded. LoRA layers found:[/white] [dim]{len(matching_keys)}[/dim]", border_style="grey50", box=box.ROUNDED))
 
     processed_count = 0
 
     with Progress(
-        SpinnerColumn("dots", style="bold yellow"),
-        TextColumn("[bold cyan]{task.description}"),
-        BarColumn(bar_width=35, style="black", complete_style="bold green", finished_style="bold green"),
-        TaskProgressColumn("[bold yellow]{task.percentage:>3.0f}%"),
-        TextColumn(t("• [bold magenta]{task.completed}/{task.total}[/] слоев")),
+        SpinnerColumn(style="white"),
+        TextColumn("[white]{task.description}[/white]"),
+        BarColumn(bar_width=35, style="grey50", complete_style="white", finished_style="bold white"),
+        TaskProgressColumn("[white]{task.percentage:>3.0f}%[/white]"),
+        TextColumn("[dim]{task.completed}/{task.total} layers[/dim]"),
         TimeElapsedColumn(),
         TimeRemainingColumn(),
         console=console,
     ) as progress:
-        task = progress.add_task(t("Инъекция весов Flux.2"), total=len(matching_keys))
+        task = progress.add_task("Injecting Flux.2 weights", total=len(matching_keys))
 
         for key in lora.keys():
             if "lora_down" in key or "lora_A" in key:
@@ -204,7 +222,6 @@ def merge_flux_base_lora():
                         w_up = lora[up_key].to(device, dtype=torch.float32)
 
                         merged_gpu = torch.matmul(w_up, w_down) * alpha
-
                         merged_cpu = merged_gpu.to("cpu", dtype=base[matched_base_key].dtype)
                         base[matched_base_key] += merged_cpu
 
@@ -213,29 +230,32 @@ def merge_flux_base_lora():
 
                 progress.update(task, advance=1)
 
-    with console.status(t("[bold green]Сохранение монолита на диск...[/bold green]"), spinner="dots"):
+    with console.status("[dim]Saving merged model to disk...[/dim]", spinner="dots"):
         save_file(base, output_path)
 
     _show_summary("FLUX.2 BASE + LORA", processed_count, len(matching_keys), output_path, start_time)
 
-
 # =========================================================================
-# 2. FLUX.2: LORA + LORA (Конкатенация рангов)
+# 2. FLUX.2: LORA + LORA
 # =========================================================================
 def merge_flux_lora_lora():
-    console.print(Panel(t("[bold yellow]⚡ FLUX.2 • LORA + LORA MERGER (RANK CONCAT) ⚡[/bold yellow]"), expand=False))
+    console.print(Panel(
+        "[bold white]FLUX.2 • LORA + LORA MERGER[/bold white] [dim](Rank Concat)[/dim]",
+        border_style="grey50",
+        box=box.ROUNDED
+    ))
 
-    lora1_path = clean_path(console.input("\n" + t("[bold cyan]1. Перетащи первую LoRA (.safetensors): [/bold cyan]")))
-    weight1 = get_float_input(t("[bold cyan]   Вес первой LoRA[/bold cyan]"), 1.0)
+    lora1_path = clean_path(console.input("\n[bold white]> 1. Drag first LoRA (.safetensors): [/bold white]"))
+    weight1 = get_float_input("[bold white]   Weight of first LoRA[/bold white]", 1.0)
 
-    lora2_path = clean_path(console.input("\n" + t("[bold cyan]2. Перетащи вторую LoRA (.safetensors): [/bold cyan]")))
-    weight2 = get_float_input(t("[bold cyan]   Вес второй LoRA[/bold cyan]"), 1.0)
+    lora2_path = clean_path(console.input("\n[bold white]> 2. Drag second LoRA (.safetensors): [/bold white]"))
+    weight2 = get_float_input("[bold white]   Weight of second LoRA[/bold white]", 1.0)
 
     if not os.path.exists(lora1_path) or not os.path.exists(lora2_path):
-        console.print(t("[bold red]❌ Ошибка: Файлы LoRA не найдены![/bold red]"))
+        console.print(Panel("[bold white]\\[ERROR][/bold white] [dim]LoRA files not found![/dim]", border_style="grey50", box=box.ROUNDED))
         return
 
-    output_path = resolve_output_path("\n" + t("[bold cyan]3. Укажи имя, путь или перетащи папку сохранения: [/bold cyan]"), "Flux2_LoRA_Hybrid.safetensors")
+    output_path = resolve_output_path("\n[bold white]> 3. Output name / path / folder: [/bold white]", "Flux2_LoRA_Hybrid.safetensors")
 
     start_time = time.time()
 
@@ -246,35 +266,34 @@ def merge_flux_lora_lora():
     except Exception:
         pass
 
-    with console.status(t("[bold cyan]Загрузка LoRA 1 в RAM...[/bold cyan]"), spinner="dots"):
+    with console.status("[dim]Loading LoRA 1 into RAM...[/dim]", spinner="dots"):
         l1 = load_file(lora1_path, device="cpu")
 
-    with console.status(t("[bold yellow]Загрузка LoRA 2 в RAM...[/bold yellow]"), spinner="dots"):
+    with console.status("[dim]Loading LoRA 2 into RAM...[/dim]", spinner="dots"):
         l2 = load_file(lora2_path, device="cpu")
 
     new_state_dict = {}
     keys_A = [k for k in l1.keys() if ".lora_A.weight" in k or ".lora_down.weight" in k]
 
     if not keys_A:
-        console.print(t("[bold red]❌ В первой LoRA не найдено весовых матриц![/bold red]"))
+        console.print(Panel("[bold white]\\[ERROR][/bold white] [dim]No weight matrices found in first LoRA![/dim]", border_style="grey50", box=box.ROUNDED))
         return
 
-    console.print(t("[bold green]✓[/bold green] Модели загружены. Найдено слоев Flux.2: ") + f"[bold cyan]{len(keys_A)}[/bold cyan]\n")
+    console.print(Panel(f"[white]Models loaded. Flux.2 layers found:[/white] [dim]{len(keys_A)}[/dim]", border_style="grey50", box=box.ROUNDED))
 
     processed_count = 0
-    skipped_count = 0
 
     with Progress(
-        SpinnerColumn("dots", style="bold yellow"),
-        TextColumn("[bold cyan]{task.description}"),
-        BarColumn(bar_width=35, style="black", complete_style="bold green", finished_style="bold green"),
-        TaskProgressColumn("[bold yellow]{task.percentage:>3.0f}%"),
-        TextColumn(t("• [bold magenta]{task.completed}/{task.total}[/] слоев")),
+        SpinnerColumn(style="white"),
+        TextColumn("[white]{task.description}[/white]"),
+        BarColumn(bar_width=35, style="grey50", complete_style="white", finished_style="bold white"),
+        TaskProgressColumn("[white]{task.percentage:>3.0f}%[/white]"),
+        TextColumn("[dim]{task.completed}/{task.total} layers[/dim]"),
         TimeElapsedColumn(),
         TimeRemainingColumn(),
         console=console,
     ) as progress:
-        task = progress.add_task(t("Сшивка гибрида Flux.2"), total=len(keys_A))
+        task = progress.add_task("Merging Flux.2 hybrid", total=len(keys_A))
 
         for key_A in keys_A:
             if ".lora_A.weight" in key_A:
@@ -306,7 +325,6 @@ def merge_flux_lora_lora():
                 new_state_dict[key_A] = l1[key_A]
                 if key_B in l1:
                     new_state_dict[key_B] = l1[key_B]
-                skipped_count += 1
 
             progress.update(task, advance=1)
 
@@ -314,56 +332,59 @@ def merge_flux_lora_lora():
         if k not in new_state_dict and k in l2:
             new_state_dict[k] = l1[k]
 
-    with console.status(t("[bold green]Запись гибридной LoRA Flux.2 на диск...[/bold green]"), spinner="dots"):
+    with console.status("[dim]Writing hybrid LoRA to disk...[/dim]", spinner="dots"):
         save_file(new_state_dict, output_path, metadata=metadata)
 
     _show_summary("FLUX.2 LORA + LORA", processed_count, len(keys_A), output_path, start_time)
 
-
 # =========================================================================
-# 3. Z-IMAGE: LORA + LORA (Конкатенация)
+# 3. Z-IMAGE: LORA + LORA
 # =========================================================================
 def merge_z_image_lora_lora():
-    console.print(Panel(t("[bold yellow]⚡ Z-IMAGE • LORA + LORA MERGER ⚡[/bold yellow]"), expand=False))
+    console.print(Panel(
+        "[bold white]Z-IMAGE • LORA + LORA MERGER[/bold white]",
+        border_style="grey50",
+        box=box.ROUNDED
+    ))
 
-    lora1_path = clean_path(console.input("\n" + t("[bold cyan]1. Перетащи первую LoRA Z-Image (.safetensors): [/bold cyan]")))
-    weight1 = get_float_input(t("[bold cyan]   Вес первой LoRA[/bold cyan]"), 1.0)
+    lora1_path = clean_path(console.input("\n[bold white]> 1. Drag first Z-Image LoRA (.safetensors): [/bold white]"))
+    weight1 = get_float_input("[bold white]   Weight of first LoRA[/bold white]", 1.0)
 
-    lora2_path = clean_path(console.input("\n" + t("[bold cyan]2. Перетащи вторую LoRA Z-Image (.safetensors): [/bold cyan]")))
-    weight2 = get_float_input(t("[bold cyan]   Вес второй LoRA[/bold cyan]"), 1.0)
+    lora2_path = clean_path(console.input("\n[bold white]> 2. Drag second Z-Image LoRA (.safetensors): [/bold white]"))
+    weight2 = get_float_input("[bold white]   Weight of second LoRA[/bold white]", 1.0)
 
     if not os.path.exists(lora1_path) or not os.path.exists(lora2_path):
-        console.print(t("[bold red]❌ Ошибка: Файлы LoRA не найдены![/bold red]"))
+        console.print(Panel("[bold white]\\[ERROR][/bold white] [dim]LoRA files not found![/dim]", border_style="grey50", box=box.ROUNDED))
         return
 
-    output_path = resolve_output_path("\n" + t("[bold cyan]3. Укажи имя, путь или перетащи папку сохранения: [/bold cyan]"), "ZImage_LoRA_Hybrid.safetensors")
+    output_path = resolve_output_path("\n[bold white]> 3. Output name / path / folder: [/bold white]", "ZImage_LoRA_Hybrid.safetensors")
 
     start_time = time.time()
 
-    with console.status(t("[bold cyan]Загрузка LoRA 1 Z-Image в RAM...[/bold cyan]"), spinner="dots"):
+    with console.status("[dim]Loading LoRA 1 into RAM...[/dim]", spinner="dots"):
         l1 = load_file(lora1_path, device="cpu")
 
-    with console.status(t("[bold yellow]Загрузка LoRA 2 Z-Image в RAM...[/bold yellow]"), spinner="dots"):
+    with console.status("[dim]Loading LoRA 2 into RAM...[/dim]", spinner="dots"):
         l2 = load_file(lora2_path, device="cpu")
 
     new_state_dict = {}
     keys_A = [k for k in l1.keys() if "lora_A.weight" in k or "lora_down.weight" in k]
 
-    console.print(t("[bold green]✓[/bold green] Модели загружены. Найдено слоев Z-Image: ") + f"[bold cyan]{len(keys_A)}[/bold cyan]\n")
+    console.print(Panel(f"[white]Models loaded. Z-Image layers found:[/white] [dim]{len(keys_A)}[/dim]", border_style="grey50", box=box.ROUNDED))
 
     processed_count = 0
 
     with Progress(
-        SpinnerColumn("dots", style="bold yellow"),
-        TextColumn("[bold cyan]{task.description}"),
-        BarColumn(bar_width=35, style="black", complete_style="bold green", finished_style="bold green"),
-        TaskProgressColumn("[bold yellow]{task.percentage:>3.0f}%"),
-        TextColumn(t("• [bold magenta]{task.completed}/{task.total}[/] слоев")),
+        SpinnerColumn(style="white"),
+        TextColumn("[white]{task.description}[/white]"),
+        BarColumn(bar_width=35, style="grey50", complete_style="white", finished_style="bold white"),
+        TaskProgressColumn("[white]{task.percentage:>3.0f}%[/white]"),
+        TextColumn("[dim]{task.completed}/{task.total} layers[/dim]"),
         TimeElapsedColumn(),
         TimeRemainingColumn(),
         console=console,
     ) as progress:
-        task = progress.add_task(t("Конкатенация Z-Image LoRA"), total=len(keys_A))
+        task = progress.add_task("Concatenating Z-Image LoRA", total=len(keys_A))
 
         for key_A in keys_A:
             if "lora_A.weight" in key_A:
@@ -392,58 +413,61 @@ def merge_z_image_lora_lora():
 
             progress.update(task, advance=1)
 
-    with console.status(t("[bold green]Сохранение гибридной LoRA Z-Image...[/bold green]"), spinner="dots"):
+    with console.status("[dim]Saving hybrid Z-Image LoRA...[/dim]", spinner="dots"):
         save_file(new_state_dict, output_path)
 
     _show_summary("Z-IMAGE LORA + LORA", processed_count, len(keys_A), output_path, start_time)
 
-
 # =========================================================================
-# 4. Z-IMAGE: BASE MODEL + LORA (CUDA Инъекция)
+# 4. Z-IMAGE: BASE MODEL + LORA
 # =========================================================================
 def merge_z_image_base_lora():
-    console.print(Panel(t("[bold yellow]⚡ Z-IMAGE • BASE MODEL + LORA (CUDA ACCELERATED) ⚡[/bold yellow]"), expand=False))
+    console.print(Panel(
+        "[bold white]Z-IMAGE • BASE MODEL + LORA[/bold white] [dim](CUDA Accelerated)[/dim]",
+        border_style="grey50",
+        box=box.ROUNDED
+    ))
 
-    base_path = clean_path(console.input("\n" + t("[bold cyan]1. Перетащи базовую модель Z-Image (.safetensors): [/bold cyan]")))
-    lora_path = clean_path(console.input(t("[bold cyan]2. Перетащи LoRA Z-Image (.safetensors): [/bold cyan]")))
+    base_path = clean_path(console.input("\n[bold white]> 1. Drag Z-Image base model (.safetensors): [/bold white]"))
+    lora_path = clean_path(console.input("[bold white]> 2. Drag Z-Image LoRA (.safetensors): [/bold white]"))
 
     if not os.path.exists(base_path) or not os.path.exists(lora_path):
-        console.print(t("[bold red]❌ Ошибка: Файлы не найдены![/bold red]"))
+        console.print(Panel("[bold white]\\[ERROR][/bold white] [dim]Files not found![/dim]", border_style="grey50", box=box.ROUNDED))
         return
 
-    output_path = resolve_output_path("\n" + t("[bold cyan]3. Укажи имя, путь или перетащи папку сохранения: [/bold cyan]"), "ZImage_Base_LoRA_Merge.safetensors")
-    alpha = get_float_input(t("[bold cyan]4. Коэффициент альфа (сила LoRA)[/bold cyan]"), 1.0)
+    output_path = resolve_output_path("\n[bold white]> 3. Output name / path / folder: [/bold white]", "ZImage_Base_LoRA_Merge.safetensors")
+    alpha = get_float_input("[bold white]> 4. LoRA strength (Alpha)[/bold white]", 1.0)
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
     if device == "cuda":
-        console.print(t("[bold green]🚀 Подключено GPU-ускорение:[/bold green]") + f" [bold yellow]{torch.cuda.get_device_name(0)}[/bold yellow]\n")
+        console.print(Panel(f"[white]GPU acceleration:[/white] [dim]{torch.cuda.get_device_name(0)}[/dim]", border_style="grey50", box=box.ROUNDED))
     else:
-        console.print(t("[bold yellow]⚠ CUDA не найдена, вычисления будут на CPU[/bold yellow]") + "\n")
+        console.print(Panel("[dim]CUDA not found, using CPU[/dim]", border_style="grey50", box=box.ROUNDED))
 
     start_time = time.time()
 
-    with console.status(t("[bold cyan]Загрузка базовой модели Z-Image в RAM...[/bold cyan]"), spinner="dots"):
+    with console.status("[dim]Loading base model into RAM...[/dim]", spinner="dots"):
         base = load_file(base_path, device="cpu")
 
-    with console.status(t("[bold yellow]Загрузка LoRA Z-Image в RAM...[/bold yellow]"), spinner="dots"):
+    with console.status("[dim]Loading LoRA into RAM...[/dim]", spinner="dots"):
         lora = load_file(lora_path, device="cpu")
 
     keys_A = [k for k in lora.keys() if "lora_A.weight" in k or "lora_down.weight" in k]
-    console.print(t("[bold green]✓[/bold green] Загружено. Найдено LoRA-слоев: ") + f"[bold cyan]{len(keys_A)}[/bold cyan]\n")
+    console.print(Panel(f"[white]Loaded. LoRA layers found:[/white] [dim]{len(keys_A)}[/dim]", border_style="grey50", box=box.ROUNDED))
 
     processed_count = 0
 
     with Progress(
-        SpinnerColumn("dots", style="bold yellow"),
-        TextColumn("[bold cyan]{task.description}"),
-        BarColumn(bar_width=35, style="black", complete_style="bold green", finished_style="bold green"),
-        TaskProgressColumn("[bold yellow]{task.percentage:>3.0f}%"),
-        TextColumn(t("• [bold magenta]{task.completed}/{task.total}[/] слоев")),
+        SpinnerColumn(style="white"),
+        TextColumn("[white]{task.description}[/white]"),
+        BarColumn(bar_width=35, style="grey50", complete_style="white", finished_style="bold white"),
+        TaskProgressColumn("[white]{task.percentage:>3.0f}%[/white]"),
+        TextColumn("[dim]{task.completed}/{task.total} layers[/dim]"),
         TimeElapsedColumn(),
         TimeRemainingColumn(),
         console=console,
     ) as progress:
-        task = progress.add_task(t("Инъекция Z-Image"), total=len(keys_A))
+        task = progress.add_task("Injecting Z-Image weights", total=len(keys_A))
 
         for key_A in keys_A:
             if "lora_A.weight" in key_A:
@@ -469,7 +493,6 @@ def merge_z_image_base_lora():
                     w_B = lora[key_B].to(device, dtype=torch.float32)
 
                     merged_gpu = torch.matmul(w_B, w_A) * alpha
-
                     merged_cpu = merged_gpu.to("cpu", dtype=base[matched_base_key].dtype)
                     base[matched_base_key] += merged_cpu
 
@@ -478,31 +501,34 @@ def merge_z_image_base_lora():
 
             progress.update(task, advance=1)
 
-    with console.status(t("[bold green]Сохранение монолитной модели Z-Image...[/bold green]"), spinner="dots"):
+    with console.status("[dim]Saving monolithic Z-Image model...[/dim]", spinner="dots"):
         save_file(base, output_path)
 
     _show_summary("Z-IMAGE BASE + LORA", processed_count, len(keys_A), output_path, start_time)
 
-
 # =========================================================================
-# 5. LORA SVD DISTILLATION (Сжатие гибридов до целевого ранга)
+# 5. LORA SVD DISTILLATION
 # =========================================================================
 def compress_lora_svd_ui():
-    console.print(Panel(t("[bold yellow]⚡ LORA SVD DISTILLATION • COMPRESSOR (CUDA ACCELERATED) ⚡[/bold yellow]"), expand=False))
+    console.print(Panel(
+        "[bold white]LORA SVD DISTILLATION • COMPRESSOR[/bold white] [dim](CUDA Accelerated)[/dim]",
+        border_style="grey50",
+        box=box.ROUNDED
+    ))
 
-    input_path = clean_path(console.input("\n" + t("[bold cyan]1. Перетащи исходную LoRA (.safetensors): [/bold cyan]")))
+    input_path = clean_path(console.input("\n[bold white]> 1. Drag source LoRA (.safetensors): [/bold white]"))
     if not os.path.exists(input_path):
-        console.print(t("[bold red]❌ Ошибка: Исходный файл не найден![/bold red]"))
+        console.print(Panel("[bold white]\\[ERROR][/bold white] [dim]Source file not found![/dim]", border_style="grey50", box=box.ROUNDED))
         return
 
-    output_path = resolve_output_path("\n" + t("[bold cyan]2. Укажи имя, путь или перетащи папку сохранения: [/bold cyan]"), "Distilled_LoRA_SVD.safetensors")
-    target_rank = get_int_input(t("[bold cyan]3. Введи целевой ранг (Target Rank, например: 128 или 256)[/bold cyan]"), 128)
+    output_path = resolve_output_path("\n[bold white]> 2. Output name / path / folder: [/bold white]", "Distilled_LoRA_SVD.safetensors")
+    target_rank = get_int_input("[bold white]> 3. Target Rank (e.g. 128 or 256)[/bold white]", 128)
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
     if device == "cuda":
-        console.print(t("[bold green]🚀 Подключено GPU-ускорение:[/bold green]") + f" [bold yellow]{torch.cuda.get_device_name(0)}[/bold yellow]\n")
+        console.print(Panel(f"[white]GPU acceleration:[/white] [dim]{torch.cuda.get_device_name(0)}[/dim]", border_style="grey50", box=box.ROUNDED))
     else:
-        console.print(t("[bold yellow]⚠ CUDA не найдена, вычисления будут на CPU[/bold yellow]") + "\n")
+        console.print(Panel("[dim]CUDA not found, using CPU[/dim]", border_style="grey50", box=box.ROUNDED))
 
     start_time = time.time()
 
@@ -513,7 +539,7 @@ def compress_lora_svd_ui():
     except Exception:
         pass
 
-    with console.status(t("[bold cyan]Загрузка LoRA в RAM...[/bold cyan]"), spinner="dots"):
+    with console.status("[dim]Loading LoRA into RAM...[/dim]", spinner="dots"):
         state_dict = load_file(input_path)
 
     new_state_dict = {}
@@ -529,21 +555,21 @@ def compress_lora_svd_ui():
         else:
             new_state_dict[key] = state_dict[key]
 
-    console.print(t("[bold green]✓[/bold green] Загружено. Найдено ") + f"[bold cyan]{len(pairs)}[/bold cyan] " + t("пар матриц для SVD-дистилляции.") + "\n")
+    console.print(Panel(f"[white]Loaded. Matrix pairs for SVD:[/white] [dim]{len(pairs)}[/dim]", border_style="grey50", box=box.ROUNDED))
 
     processed_count = 0
 
     with Progress(
-        SpinnerColumn("dots", style="bold yellow"),
-        TextColumn("[bold cyan]{task.description}"),
-        BarColumn(bar_width=35, style="black", complete_style="bold green", finished_style="bold green"),
-        TaskProgressColumn("[bold yellow]{task.percentage:>3.0f}%"),
-        TextColumn(t("• [bold magenta]{task.completed}/{task.total}[/] пар")),
+        SpinnerColumn(style="white"),
+        TextColumn("[white]{task.description}[/white]"),
+        BarColumn(bar_width=35, style="grey50", complete_style="white", finished_style="bold white"),
+        TaskProgressColumn("[white]{task.percentage:>3.0f}%[/white]"),
+        TextColumn("[dim]{task.completed}/{task.total} pairs[/dim]"),
         TimeElapsedColumn(),
         TimeRemainingColumn(),
         console=console,
     ) as progress:
-        task = progress.add_task(t("SVD Дистилляция (до Rank ") + f"{target_rank})", total=len(pairs))
+        task = progress.add_task(f"SVD Distillation (to Rank {target_rank})", total=len(pairs))
 
         for base_key, pair in pairs.items():
             if "A" not in pair or "B" not in pair:
@@ -560,10 +586,8 @@ def compress_lora_svd_ui():
                 w_A = w_A.squeeze(-1).squeeze(-1)
                 w_B = w_B.squeeze(-1).squeeze(-1)
 
-            # Восстанавливаем дельту весов W = B @ A
             delta_w = torch.matmul(w_B, w_A)
 
-            # 🚀 SVD на тензорных ядрах GPU
             U, S, Vh = torch.linalg.svd(delta_w, full_matrices=False)
 
             r = min(target_rank, S.shape[0])
@@ -595,27 +619,33 @@ def compress_lora_svd_ui():
     new_metadata["ss_network_dim"] = str(target_rank)
     new_metadata["ss_network_alpha"] = str(target_rank)
 
-    with console.status(t("[bold green]Запись дистиллированной LoRA на диск...[/bold green]"), spinner="dots"):
+    with console.status("[dim]Writing distilled LoRA to disk...[/dim]", spinner="dots"):
         save_file(new_state_dict, output_path, metadata=new_metadata)
-        
+
+    _show_summary(f"SVD DISTILLATION (Rank {target_rank})", processed_count, len(pairs), output_path, start_time)
 
 # =========================================================================
-# 6. Z-IMAGE SAEP-SVD DISTILLATION (Orakul Studio Custom)
+# 6. Z-IMAGE SAEP-SVD DISTILLATION
 # =========================================================================
 def compress_z_image_saep_svd():
-    console.print(Panel(t("[bold yellow]⚡ Z-IMAGE SAEP-SVD DISTILLATION (Sign Alignment & Energy Preservation) ⚡[/bold yellow]\n[dim]Авторский алгоритм Orakul Studio для экстремальных рангов Z-Image (Rank 2048 -> Rank k)[/dim]"), expand=False))
+    console.print(Panel(
+        "[bold white]Z-IMAGE SAEP-SVD DISTILLATION[/bold white]\n"
+        "[dim]Sign Alignment & Energy Preservation — Orakul Studio Custom[/dim]",
+        border_style="grey50",
+        box=box.ROUNDED
+    ))
 
-    input_path = clean_path(console.input("\n" + t("[bold cyan]1. Перетащи исходную высокоранговую LoRA Z-Image (.safetensors): [/bold cyan]")))
+    input_path = clean_path(console.input("\n[bold white]> 1. Drag high-rank Z-Image LoRA (.safetensors): [/bold white]"))
     if not os.path.exists(input_path):
-        console.print(t("[bold red]❌ Ошибка: Исходный файл не найден![/bold red]"))
+        console.print(Panel("[bold white]\\[ERROR][/bold white] [dim]Source file not found![/dim]", border_style="grey50", box=box.ROUNDED))
         return
 
-    output_path = resolve_output_path("\n" + t("[bold cyan]2. Укажи имя, путь или перетащи папку сохранения: [/bold cyan]"), "ZImage_SAEP_Distilled.safetensors")
-    target_rank = get_int_input(t("[bold cyan]3. Введи целевой ранг (Target Rank, например: 256)[/bold cyan]"), 256)
+    output_path = resolve_output_path("\n[bold white]> 2. Output name / path / folder: [/bold white]", "ZImage_SAEP_Distilled.safetensors")
+    target_rank = get_int_input("[bold white]> 3. Target Rank (e.g. 256)[/bold white]", 256)
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
     if device == "cuda":
-        console.print(t("[bold green]🚀 Подключено GPU-ускорение:[/bold green]") + f" [bold yellow]{torch.cuda.get_device_name(0)}[/bold yellow]\n")
+        console.print(Panel(f"[white]GPU acceleration:[/white] [dim]{torch.cuda.get_device_name(0)}[/dim]", border_style="grey50", box=box.ROUNDED))
 
     start_time = time.time()
     metadata = {}
@@ -625,7 +655,7 @@ def compress_z_image_saep_svd():
     except Exception:
         pass
 
-    with console.status(t("[bold cyan]Загрузка LoRA Z-Image в RAM...[/bold cyan]"), spinner="dots"):
+    with console.status("[dim]Loading Z-Image LoRA into RAM...[/dim]", spinner="dots"):
         state_dict = load_file(input_path)
 
     new_state_dict = {}
@@ -644,16 +674,16 @@ def compress_z_image_saep_svd():
     processed_count = 0
 
     with Progress(
-        SpinnerColumn("dots", style="bold yellow"),
-        TextColumn("[bold cyan]{task.description}"),
-        BarColumn(bar_width=35, style="black", complete_style="bold green", finished_style="bold green"),
-        TaskProgressColumn("[bold yellow]{task.percentage:>3.0f}%"),
-        TextColumn(t("• [bold magenta]{task.completed}/{task.total}[/] матриц")),
+        SpinnerColumn(style="white"),
+        TextColumn("[white]{task.description}[/white]"),
+        BarColumn(bar_width=35, style="grey50", complete_style="white", finished_style="bold white"),
+        TaskProgressColumn("[white]{task.percentage:>3.0f}%[/white]"),
+        TextColumn("[dim]{task.completed}/{task.total} matrices[/dim]"),
         TimeElapsedColumn(),
         TimeRemainingColumn(),
         console=console,
     ) as progress:
-        task = progress.add_task(t("SAEP-SVD Дистилляция (до Rank ") + f"{target_rank})", total=len(pairs))
+        task = progress.add_task(f"SAEP-SVD Distillation (to Rank {target_rank})", total=len(pairs))
 
         for base_key, pair in pairs.items():
             if "A" not in pair or "B" not in pair:
@@ -669,28 +699,23 @@ def compress_z_image_saep_svd():
                 w_A = w_A.squeeze(-1).squeeze(-1)
                 w_B = w_B.squeeze(-1).squeeze(-1)
 
-            # Восстанавливаем оригинальные веса
             delta_w = torch.matmul(w_B, w_A)
             
-            # SVD Разложение
             U, S, Vh = torch.linalg.svd(delta_w, full_matrices=False)
             
             r = min(target_rank, S.shape[0])
             
-            # 1. Sign Alignment (Выравнивание знака)
-            # Если сумма по столбцу U отрицательная - инвертируем U и V
+            # Sign Alignment
             u_sums = torch.sum(U[:, :r], dim=0)
             sign_mask = torch.where(u_sums < 0, torch.tensor(-1.0, device=device), torch.tensor(1.0, device=device))
             
             U_r = U[:, :r] * sign_mask
             Vh_r = Vh[:r, :] * sign_mask.unsqueeze(1)
             
-            # 2. Energy Preservation (Сохранение энергии)
+            # Energy Preservation
             S_r = S[:r].clone()
             if r < S.shape[0]:
-                # Считаем остаточную энергию отсекаемого хвоста
                 residual_energy = torch.sqrt(torch.sum(S[r:] ** 2))
-                # Инъекция фракции энергии в нижнюю границу (последние 10% ранга)
                 inject_start = max(0, r - int(r * 0.1))
                 injection_per_value = residual_energy / (r - inject_start)
                 S_r[inject_start:] += injection_per_value
@@ -720,52 +745,33 @@ def compress_z_image_saep_svd():
     new_metadata["ss_network_alpha"] = str(target_rank)
     new_metadata["distillation_method"] = "SAEP-SVD (Orakul Studio)"
 
-    with console.status(t("[bold green]Запись SAEP-дистиллята на диск...[/bold green]"), spinner="dots"):
+    with console.status("[dim]Writing SAEP-distilled LoRA to disk...[/dim]", spinner="dots"):
         save_file(new_state_dict, output_path, metadata=new_metadata)
 
-    _show_summary(f"SAEP-SVD (Rank {target_rank})", processed_count, len(pairs), output_path, start_time)      
-
-
-# =========================================================================
-# УТИЛИТА ВЫВОДА СВОДКИ
-# =========================================================================
-def _show_summary(title: str, processed: int, total: int, output_path: str, start_time: float):
-    elapsed = time.time() - start_time
-    size_mb = os.path.getsize(output_path) / (1024 ** 2) if os.path.exists(output_path) else 0
-
-    summary = Table(title=f"[bold green]{t('📊 ОТЧЕТ:')} {title}[/bold green]", show_header=True, header_style="bold cyan")
-    summary.add_column(t("Параметр"), style="white")
-    summary.add_column(t("Значение"), style="bold yellow")
-
-    summary.add_row(t("Обработано слоев"), f"{processed} / {total}")
-    summary.add_row(t("Сохранено по пути"), f"[bold white]{output_path}[/bold white]")
-    if size_mb >= 1024:
-        summary.add_row(t("Размер итогового файла"), f"[bold green]{size_mb / 1024:.2f} GB[/bold green]")
-    else:
-        summary.add_row(t("Размер итогового файла"), f"[bold green]{size_mb:.2f} MB[/bold green]")
-    summary.add_row(t("Затрачено времени"), f"{elapsed:.2f} {t('сек')}")
-
-    console.print("\n")
-    console.print(summary)
-
+    _show_summary(f"SAEP-SVD (Rank {target_rank})", processed_count, len(pairs), output_path, start_time)
 
 # =========================================================================
-# ГЛАВНОЕ МЕНЮ СЛИЯНИЙ
+# MAIN MENU
 # =========================================================================
 def main():
     while True:
         menu_text = (
-            t("[bold cyan][1][/bold cyan] Flux.2: Base Model + LoRA (Прямая инъекция весов)") + "\n" +
-            t("[bold cyan][2][/bold cyan] Flux.2: LoRA + LoRA (Конкатенация рангов r1 + r2)") + "\n" +
-            t("[bold cyan][3][/bold cyan] Z-Image: LoRA + LoRA (Конкатенация рангов)") + "\n" +
-            t("[bold cyan][4][/bold cyan] Z-Image: Base Model + LoRA (Инъекция с умным резолвером)") + "\n" +
-            t("[bold cyan][5][/bold cyan] LoRA SVD Distillation (Стандартное SVD сжатие)") + "\n" +
-            t("[bold magenta][6][/bold magenta] [bold yellow]Z-Image: SAEP-SVD Distillation (Orakul Studio Custom)[/bold yellow]") + "\n" +
-            t("[bold red][0][/bold red] Назад в главное меню")
+            "[bold white][ 1 ][/bold white] Flux.2: Base Model + LoRA (Direct weight injection)\n"
+            "[bold white][ 2 ][/bold white] Flux.2: LoRA + LoRA (Rank concatenation r1 + r2)\n"
+            "[bold white][ 3 ][/bold white] Z-Image: LoRA + LoRA (Rank concatenation)\n"
+            "[bold white][ 4 ][/bold white] Z-Image: Base Model + LoRA (Smart resolver injection)\n"
+            "[bold white][ 5 ][/bold white] LoRA SVD Distillation (Standard SVD compression)\n"
+            "[bold white][ 6 ][/bold white] Z-Image: SAEP-SVD Distillation (Orakul Studio Custom)\n"
+            "[bold white][ 0 ][/bold white] Return to main menu"
         )
-        console.print(Panel(menu_text, title=t("[bold yellow]⚡ ORAKUL STUDIO • WEIGHT MERGER HUB ⚡[/bold yellow]"), border_style="yellow", expand=False))
+        console.print(Panel(
+            menu_text,
+            title="[bold white] WEIGHT MERGER HUB [/bold white]",
+            border_style="grey50",
+            box=box.ROUNDED
+        ))
         
-        choice = console.input("\n" + t("[bold white]Выбери режим слияния (0-6): [/bold white]")).strip()
+        choice = console.input("\n[bold white]> Select merge mode (0-6): [/bold white]").strip()
 
         if choice == '1':
             merge_flux_base_lora()
