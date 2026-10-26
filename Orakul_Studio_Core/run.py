@@ -307,7 +307,7 @@ def main():
                     input_buffer += key
                     status_msg = ""
 
-            
+            live.update(generate_ui(input_buffer, status_msg))
             time.sleep(0.05)
 
     clear_screen()
