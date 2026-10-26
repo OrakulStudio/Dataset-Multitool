@@ -26,7 +26,7 @@ from rich.panel import Panel
 from rich.table import Table
 from rich import box
 
-from updater import check_for_updates
+
 
 def t(text: str) -> str:
     """Translation helper. Currently returns English. Ready for future i18n."""
@@ -307,7 +307,7 @@ def main():
                     input_buffer += key
                     status_msg = ""
 
-            live.update(generate_ui(input_buffer, status_msg))
+            
             time.sleep(0.05)
 
     clear_screen()
@@ -315,5 +315,5 @@ def main():
 
 
 if __name__ == "__main__":
-    check_for_updates()
+ 
     main()
