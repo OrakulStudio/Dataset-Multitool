@@ -1,13 +1,14 @@
 # 🛠️ Orakul Toolkit: Viking Multi-tool
 
 ```
-Release v2.2.1 (26.10.2026)
-Fully redesigned terminal interface (clean graphite style)
-Unified look across all modules
-Improved layout for different screen sizes and aspect ratios
-Language temporarily set to English only
-Multilingual support (RU / UK / others) will be restored later 
-
+>[note]
+>Release v2.2.1 (26.10.2026)
+>Fully redesigned terminal interface (clean graphite style)
+>Unified look across all modules
+>Improved layout for different screen sizes and aspect ratios
+>Language temporarily set to English only
+>Multilingual support (RU / UK / others) will be restored later 
+>
 
 Release v2.1.1 (12.10.2026)
 Major Update: Dataset Manager + Updater
