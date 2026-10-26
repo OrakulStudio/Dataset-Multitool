@@ -1,6 +1,6 @@
 # 🛠️ Orakul Toolkit: Viking Multi-tool
 
->[note]
+>[!note]
 >Release v2.2.1 (26.10.2026)
 >Fully redesigned terminal interface (clean graphite style)
 >Unified look across all modules
