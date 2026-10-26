@@ -1,5 +1,16 @@
 # 🛠️ Orakul Toolkit: Viking Multi-tool
 
+>[!note]
+>Release v2.2.1 (26.10.2026)
+>Fully redesigned terminal interface (clean graphite style)
+>Unified look across all modules
+>Improved layout for different screen sizes and aspect ratios
+>Language temporarily set to English only
+>Multilingual support (RU / UK / others) will be restored later 
+>
+
+<img width="3840" height="2160" alt="Снимок экрана (1647)" src="https://github.com/user-attachments/assets/d8dc3a93-11c6-4031-9ee6-42db89dba571" />
+
 ```
 Release v2.1.1 (12.10.2026)
 Major Update: Dataset Manager + Updater
@@ -20,6 +31,7 @@ An Updater has also been added:
 - Checks for new commits whenever the utility is launched.
 - Can fully restore the entire set of working scripts, even if only the updater file itself remains in the folder.
 ```
+
 🚀 Orakul Dataset Multitool  Release v2.1.0
 ⏳ TONIGHT'S DROP: Integration of the heavyweight Qwen 3.5 Base / Qwen-VL family in pure bf16 is complete! Tests are passed, and the v2.1.0 release is live right after the evening power-up.
 
