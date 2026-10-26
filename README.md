@@ -11,6 +11,9 @@
 
 <img width="3840" height="2160" alt="Снимок экрана (1647)" src="https://github.com/user-attachments/assets/d8dc3a93-11c6-4031-9ee6-42db89dba571" />
 
+<img width="3840" height="2160" alt="image" src="https://github.com/user-attachments/assets/745bae90-d95a-441e-855f-f89845bbbe78" />
+
+
 ```
 Release v2.1.1 (12.10.2026)
 Major Update: Dataset Manager + Updater
